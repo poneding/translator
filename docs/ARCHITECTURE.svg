@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/>
+    </marker>
+    <linearGradient id="tauriGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+    <linearGradient id="coreGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#dbeafe"/>
+      <stop offset="100%" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <linearGradient id="platGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e9d5ff"/>
+      <stop offset="100%" stop-color="#d8b4fe"/>
+    </linearGradient>
+  </defs>
+
+  <style>
+    .title { font-size: 20px; font-weight: 700; fill: #0f172a; }
+    .subtitle { font-size: 12px; fill: #64748b; }
+    .layer-label { font-size: 11px; font-weight: 700; fill: #475569; letter-spacing: 0.5px; text-transform: uppercase; }
+    .box { fill: white; stroke: #cbd5e1; stroke-width: 1.5; }
+    .box-tauri { fill: url(#tauriGrad); stroke: #d97706; stroke-width: 1.5; }
+    .box-core { fill: url(#coreGrad); stroke: #2563eb; stroke-width: 1.5; }
+    .box-plat { fill: url(#platGrad); stroke: #7c3aed; stroke-width: 1.5; }
+    .box-os { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.5; }
+    .box-ext { fill: #ecfdf5; stroke: #059669; stroke-width: 1.5; }
+    .node-title { font-size: 13px; font-weight: 600; fill: #0f172a; }
+    .node-sub { font-size: 10px; fill: #475569; }
+    .layer-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; stroke-dasharray: 4 3; }
+    .arrow { stroke: #475569; stroke-width: 1.5; fill: none; }
+    .arrow-data { stroke: #2563eb; stroke-width: 2; fill: none; }
+    .arrow-os { stroke: #059669; stroke-width: 1.5; fill: none; }
+    .label { font-size: 10px; fill: #334155; }
+    .label-bg { fill: #f8fafc; }
+  </style>
+
+  <!-- Title -->
+  <text x="40" y="34" class="title">translator — system architecture</text>
+  <text x="40" y="52" class="subtitle">Data flow from selection to translation, layered by responsibility</text>
+
+  <!-- ===== Layer 1: User ===== -->
+  <text x="40" y="86" class="layer-label">User</text>
+  <rect x="40" y="96" width="200" height="56" rx="6" class="box"/>
+  <text x="60" y="118" class="node-title">User</text>
+  <text x="60" y="135" class="node-sub">selects text + presses hotkey</text>
+  <text x="60" y="147" class="node-sub">CmdOrCtrl+Shift+D</text>
+
+  <!-- ===== Layer 2: UI (React) ===== -->
+  <text x="40" y="186" class="layer-label">Frontend — React + Vite + Tailwind</text>
+  <rect x="40" y="196" width="200" height="56" rx="6" class="box"/>
+  <text x="60" y="218" class="node-title">Popup window</text>
+  <text x="60" y="235" class="node-sub">floating, transparent, on-top</text>
+  <text x="60" y="247" class="node-sub">shows results + copy/retry</text>
+
+  <rect x="260" y="196" width="200" height="56" rx="6" class="box"/>
+  <text x="280" y="218" class="node-title">Settings window</text>
+  <text x="280" y="235" class="node-sub">5 sections: General, Services,</text>
+  <text x="280" y="247" class="node-sub">Hotkey, Appearance, About</text>
+
+  <rect x="480" y="196" width="200" height="56" rx="6" class="box"/>
+  <text x="500" y="218" class="node-title">i18n (Fluent)</text>
+  <text x="500" y="235" class="node-sub">en.ftl + zh-Hans.ftl</text>
+  <text x="500" y="247" class="node-sub">runtime locale switch</text>
+
+  <rect x="700" y="196" width="200" height="56" rx="6" class="box"/>
+  <text x="720" y="218" class="node-title">State stores</text>
+  <text x="720" y="235" class="node-sub">config (Zustand)</text>
+  <text x="720" y="247" class="node-sub">results (per-translation)</text>
+
+  <!-- ===== Layer 3: Tauri IPC ===== -->
+  <text x="40" y="296" class="layer-label">Tauri 2 IPC — crates/app</text>
+  <rect x="40" y="306" width="860" height="100" rx="8" class="layer-bg"/>
+  <rect x="60" y="316" width="180" height="40" rx="4" class="box-tauri"/>
+  <text x="78" y="333" class="node-title">Selection commands</text>
+  <text x="78" y="350" class="node-sub">get_selected_text</text>
+
+  <rect x="260" y="316" width="180" height="40" rx="4" class="box-tauri"/>
+  <text x="278" y="333" class="node-title">Translation</text>
+  <text x="278" y="350" class="node-sub">translate_text</text>
+
+  <rect x="460" y="316" width="180" height="40" rx="4" class="box-tauri"/>
+  <text x="478" y="333" class="node-title">Config / secrets</text>
+  <text x="478" y="350" class="node-sub">get_config · set_api_key</text>
+
+  <rect x="660" y="316" width="220" height="40" rx="4" class="box-tauri"/>
+  <text x="678" y="333" class="node-title">Window / system</text>
+  <text x="678" y="350" class="node-sub">show_popup · copy_to_clipboard</text>
+
+  <rect x="60" y="366" width="200" height="32" rx="4" class="box-tauri"/>
+  <text x="78" y="386" class="node-sub">State, Tray, Permissions, Global hotkey</text>
+  <rect x="280" y="366" width="160" height="32" rx="4" class="box-tauri"/>
+  <text x="298" y="386" class="node-sub">AppState (Arc-shared)</text>
+  <rect x="460" y="366" width="160" height="32" rx="4" class="box-tauri"/>
+  <text x="478" y="386" class="node-sub">tauri::Builder setup</text>
+  <rect x="640" y="366" width="240" height="32" rx="4" class="box-tauri"/>
+  <text x="658" y="386" class="node-sub">Capability: capabilities/default.json</text>
+
+  <!-- ===== Layer 4: Core ===== -->
+  <text x="40" y="446" class="layer-label">Domain — crates/core (pure Rust)</text>
+  <rect x="40" y="456" width="860" height="116" rx="8" class="layer-bg"/>
+  <rect x="60" y="466" width="160" height="44" rx="4" class="box-core"/>
+  <text x="78" y="484" class="node-title">Translator</text>
+  <text x="78" y="499" class="node-sub">parallel fan-out</text>
+  <text x="78" y="511" class="node-sub">8s per-service timeout</text>
+
+  <rect x="240" y="466" width="160" height="44" rx="4" class="box-core"/>
+  <text x="258" y="484" class="node-title">Config</text>
+  <text x="258" y="499" class="node-sub">JSON, $XDG_CONFIG_HOME</text>
+  <text x="258" y="511" class="node-sub">/translator/config.json</text>
+
+  <rect x="420" y="466" width="160" height="44" rx="4" class="box-core"/>
+  <text x="438" y="484" class="node-title">Secrets</text>
+  <text x="438" y="499" class="node-sub">keyring crate</text>
+  <text x="438" y="511" class="node-sub">OS Keychain wrapper</text>
+
+  <rect x="600" y="466" width="280" height="44" rx="4" class="box-core"/>
+  <text x="618" y="484" class="node-title">TranslationService trait</text>
+  <text x="618" y="499" class="node-sub">5 impls: Youdao · DeepL · Google · Bing · OpenAI-compat</text>
+
+  <rect x="60" y="520" width="820" height="44" rx="4" class="box-core"/>
+  <text x="78" y="538" class="node-title">reqwest (rustls) + tokio</text>
+  <text x="78" y="553" class="node-sub">async HTTP, JSON, retries with backoff</text>
+  <text x="438" y="538" class="node-title">thiserror · tracing</text>
+  <text x="438" y="553" class="node-sub">typed errors (ServiceError), structured logs</text>
+
+  <!-- ===== Layer 5: Platform ===== -->
+  <text x="40" y="608" class="layer-label">Platform glue — crates/platform</text>
+  <rect x="40" y="618" width="540" height="80" rx="8" class="layer-bg"/>
+  <rect x="60" y="628" width="500" height="60" rx="4" class="box-plat"/>
+  <text x="78" y="647" class="node-title">SelectionMonitor trait  ·  get_selected_text / selection_bounds / cursor_position / permission</text>
+  <text x="78" y="664" class="node-sub">macOS  (accessibility-sys + AXUIElement)</text>
+  <text x="78" y="678" class="node-sub">Windows  (windows crate + UI_UIAutomation)   ·   Linux  (atspi + zbus over D-Bus)</text>
+
+  <!-- ===== Layer 6: OS / External ===== -->
+  <text x="600" y="608" class="layer-label">External</text>
+  <rect x="600" y="618" width="300" height="80" rx="8" class="layer-bg"/>
+  <rect x="615" y="628" width="135" height="60" rx="4" class="box-os"/>
+  <text x="628" y="647" class="node-title">OS APIs</text>
+  <text x="628" y="664" class="node-sub">Accessibility</text>
+  <text x="628" y="678" class="node-sub">UI Automation, AT-SPI</text>
+  <rect x="765" y="628" width="135" height="60" rx="4" class="box-ext"/>
+  <text x="778" y="647" class="node-title">Cloud services</text>
+  <text x="778" y="664" class="node-sub">Youdao · DeepL</text>
+  <text x="778" y="678" class="node-sub">Google · Bing · OpenAI</text>
+
+  <!-- ===== Arrows: hotkey path ===== -->
+  <!-- User → Popup (via hotkey) -->
+  <line x1="140" y1="152" x2="140" y2="194" class="arrow-data" marker-end="url(#arrow-blue)"/>
+  <text x="148" y="178" class="label">hotkey</text>
+
+  <!-- Popup → Tauri IPC (commands) -->
+  <line x1="140" y1="252" x2="140" y2="316" class="arrow-data" marker-end="url(#arrow-blue)"/>
+
+  <!-- Tauri IPC → Core -->
+  <line x1="350" y1="356" x2="350" y2="466" class="arrow-data" marker-end="url(#arrow-blue)"/>
+  <text x="358" y="416" class="label">invoke()</text>
+
+  <!-- Core → Platform (for selection) -->
+  <line x1="180" y1="572" x2="180" y2="628" class="arrow-data" marker-end="url(#arrow-blue)"/>
+  <text x="188" y="608" class="label">monitor</text>
+
+  <!-- Platform → OS APIs -->
+  <line x1="560" y1="658" x2="615" y2="658" class="arrow-os" marker-end="url(#arrow-green)"/>
+  <text x="572" y="650" class="label">FFI</text>
+
+  <!-- Core → Cloud services (HTTP) -->
+  <line x1="740" y1="510" x2="830" y2="628" class="arrow-data" stroke-dasharray="4 3" marker-end="url(#arrow-blue)"/>
+  <text x="754" y="568" class="label">HTTPS</text>
+
+  <!-- ===== Legend ===== -->
+  <rect x="40" y="702" width="880" height="0" />
+</svg>

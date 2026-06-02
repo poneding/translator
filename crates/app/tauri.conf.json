@@ -1,0 +1,91 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "translator",
+  "version": "0.1.0",
+  "identifier": "dev.translator.desktop",
+  "build": {
+    "beforeDevCommand": "C:\\Users\\dp\\Easydict\\translator\\build-ui.bat && npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "C:\\Users\\dp\\Easydict\\translator\\build-ui.bat",
+    "frontendDist": "C:\\Users\\dp\\Easydict\\translator\\ui\\dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "settings",
+        "title": "translator — Settings",
+        "url": "index.html",
+        "width": 880,
+        "height": 640,
+        "minWidth": 720,
+        "minHeight": 480,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false,
+        "decorations": true
+      },
+      {
+        "label": "popup",
+        "title": "translator",
+        "url": "popup.html",
+        "width": 480,
+        "height": 320,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false,
+        "shadow": true,
+        "visibleOnAllWorkspaces": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: ipc: http://ipc.localhost"
+    },
+    "trayIcon": {
+      "id": "main",
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false,
+      "tooltip": "translator"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Cross-platform select-and-translate tool",
+    "longDescription": "Pick text anywhere, press a hotkey, get translations in a floating popup. Supports Youdao, DeepL, Google, Bing, and any OpenAI-compatible API.",
+    "publisher": "translator contributors",
+    "licenseFile": "../../LICENSE",
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "exceptionDomain": "",
+      "frameworks": []
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+      }
+    }
+  },
+  "plugins": {
+    "global-shortcut": {
+      "shortcuts": []
+    }
+  }
+}

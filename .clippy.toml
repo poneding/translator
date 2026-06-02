@@ -1,0 +1,5 @@
+avoid-breaking-exported-api = false
+disallowed-methods = []
+doc-valid-idents = ["macOS", "Windows", "Linux"]
+missing-docs-in-crate-items = false
+cognitive-complexity-threshold = 30

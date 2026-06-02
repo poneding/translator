@@ -1,0 +1,4 @@
+# rustfmt defaults, plus slightly tighter line width
+max_width = 100
+tab_spaces = 4
+edition = "2021"

@@ -1,0 +1,31 @@
+[package]
+name = "translator-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Pure-Rust business core: translation services, config, secrets, models."
+
+[dependencies]
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+keyring = { workspace = true }
+dirs = { workspace = true }
+futures = { workspace = true }
+uuid = { version = "1.11", features = ["v4"] }
+hmac = "0.12"
+sha2 = "0.10"
+
+# i18n: enable `rust_i18n` macro OR use fluent directly.
+# For v1 we keep it trait-based; frontend handles UI strings via fluent .ftl.
+
+[dev-dependencies]
+wiremock = { workspace = true }
+pretty_assertions = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -1,0 +1,87 @@
+# Release Process (translator v0.1.0+)
+
+> Status: v0.1.0 ships **unsigned** on all three platforms.
+> Code-signing infrastructure is a v0.2.0 deliverable (see SPEC §3 and PLAN §2 M5.5/M5.6).
+
+## 1. Cutting a release
+
+1. Update `CHANGELOG.md`: move every `## [Unreleased]` entry under a new `## [x.y.z] - YYYY-MM-DD` heading.
+2. Commit the changelog bump.
+3. Tag the commit: `git tag -s vX.Y.Z -m "vX.Y.Z"` (use a GPG/SSH-signed tag if the maintainer has one configured).
+4. Push the tag: `git push origin vX.Y.Z`.
+5. The `.github/workflows/release.yml` workflow fires on the `v*` tag, builds
+   on macOS (universal), Ubuntu 22.04, and Windows, and produces a draft
+   GitHub Release with the following artifacts:
+   - `translator_X.Y.Z_universal.dmg` + `translator.app.tar.gz` (macOS)
+   - `translator_X.Y.Z_amd64.AppImage` + `translator_X.Y.Z_amd64.deb` (Linux)
+   - `translator_X.Y.Z_x64_en-US.msi` + `translator_X.Y.Z_x64-setup.exe` (Windows)
+6. Review the draft release, paste the CHANGELOG section into the release
+   notes, and publish.
+
+## 2. Code signing — macOS (M5.5)
+
+**v0.1.0**: ad-hoc signed only. First launch shows the standard
+"unidentified developer" Gatekeeper prompt; users must right-click → Open
+the first time. Documented in `docs/user-guide.md`.
+
+**v0.2.0 plan**:
+- Provision an Apple Developer ID Application certificate.
+- Store the cert + `.p12` password in GitHub Actions secrets:
+  - `APPLE_CERT_P12_BASE64` — base64 of the `.p12`
+  - `APPLE_CERT_PASSWORD` — password for the `.p12`
+  - `APPLE_SIGNING_IDENTITY` — `Developer ID Application: <Team Name> (<TEAMID>)`
+  - `APPLE_ID` + `APPLE_PASSWORD` (app-specific) for notarization
+- Add the `tauri-apps/tauri-action` notarization step in `release.yml`.
+- Add a notarize hook in `tauri.conf.json` `bundle.macOS.entitlements` / `exceptionDomain`.
+
+## 3. Code signing — Windows (M5.6)
+
+**v0.1.0**: unsigned. SmartScreen shows the "Windows protected your PC"
+blue dialog; users must click "More info" → "Run anyway".
+
+**v0.2.0 plan**:
+- Acquire an EV Code Signing Certificate (required for SmartScreen
+  reputation in 2026).
+- Store the cert in GitHub Actions secrets as `WINDOWS_CERT_PFX_BASE64`
+  and `WINDOWS_CERT_PASSWORD`.
+- Sign with `signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f cert.pfx /p $PWD`.
+- Tauri Action has built-in Windows signing support — set the env vars
+  and add `signCommand` in `tauri.conf.json` `bundle.windows.signCommand`.
+
+## 4. Code signing — Linux (M5.7)
+
+**v0.1.0**: not signed. Ubuntu users see the standard "install untrusted
+package" prompt. Fedora/RHEL users need to install from the AppImage.
+
+**v0.2.0 plan**:
+- Generate a GPG key pair: `gpg --full-gen-key`.
+- Sign the `.deb` with `dpkg-sig --sign builder translator_X.Y.Z_amd64.deb`.
+- Sign the AppImage with `gpg --detach-sign --armor` and distribute the
+  `.sig` alongside the AppImage.
+- Publish the public key on the website and in the repo's `KEYS` file.
+
+## 5. Post-release verification (M6.3)
+
+After publishing, a maintainer must smoke-test on a **clean** machine for
+each platform:
+
+| Platform | Check |
+| --- | --- |
+| macOS | Drag `.dmg` → Applications, launch, grant Accessibility, press hotkey, translate "Hello world", copy. |
+| Windows | Run the `.msi` installer, launch, press hotkey, translate, copy. |
+| Linux (Ubuntu 22.04) | `sudo dpkg -i translator_X.Y.Z_amd64.deb && apt-get install -f`, launch, hotkey, translate, copy. |
+
+If any platform fails, yank the release, fix, and cut `vX.Y.Z+1`.
+
+## 6. Troubleshooting
+
+- **"Bundle target not supported on this runner"** — the `tauri-action`
+  step needs the right platform-specific Tauri targets. Add
+  `--target universal-apple-darwin` for macOS (already set in
+  `release.yml`).
+- **"WiX Toolset not found"** — Windows MSI bundling needs WiX 3.14
+  installed. The Tauri Action installs it automatically; if running
+  locally, install via `cargo install --git https://github.com/wixtoolset/wix3`.
+- **"NSIS not found"** — same story, install via `cargo install --git https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-bundler`.
+- **"missing icon"** — `crates/app/icons/icon.ico` and `icon.icns` must
+  exist. Regenerate from a 1024×1024 PNG via `cargo tauri icon`.
