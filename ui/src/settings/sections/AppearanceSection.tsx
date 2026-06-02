@@ -11,6 +11,8 @@ export function AppearanceSection() {
         {(["system", "light", "dark"] as const).map((t) => (
           <button
             key={t}
+            aria-label={`Theme: ${t}`}
+            aria-pressed={theme === t}
             className={
               "rounded-md px-3 py-1 " +
               (theme === t ? "bg-bg text-fg shadow" : "text-fg-subtle hover:text-fg")

@@ -30,6 +30,7 @@ export function ShortcutSection() {
       <label className="label">Global hotkey</label>
       <input
         className={"input " + (err ? "border-red-500" : "")}
+        aria-label="Global hotkey (Tauri global-shortcut syntax)"
         defaultValue={config.shortcut}
         placeholder="CmdOrCtrl+Shift+D"
         onBlur={async (e) => {

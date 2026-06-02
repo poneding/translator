@@ -263,6 +263,7 @@ function ResultRow({ outcome: o }: { outcome: import("../types/bindings").Servic
               await api.copyToClipboard(o.result!.text);
               setCopied(true);
             }}
+            aria-label={t("popup-copy")}
           >
             {copied ? t("popup-copied", null, "Copied") : t("popup-copy")}
           </button>
@@ -279,7 +280,7 @@ function ErrorView({ message, actionLabel, onAction }: { message: string; action
     <div className="space-y-2 py-4 text-center text-sm text-fg-subtle">
       <p>{message}</p>
       {actionLabel && onAction && (
-        <button className="btn" onClick={onAction}>{actionLabel}</button>
+        <button className="btn" onClick={onAction} aria-label={actionLabel}>{actionLabel}</button>
       )}
     </div>
   );

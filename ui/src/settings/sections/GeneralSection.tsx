@@ -35,6 +35,7 @@ export function GeneralSection() {
         <label className="label">Target language</label>
         <select
           className="input"
+          aria-label="Target language"
           value={
             TARGET_LANGS.some((l) => l.code === config.general.target_language)
               ? config.general.target_language
@@ -61,6 +62,7 @@ export function GeneralSection() {
           <label className="text-xs text-fg-subtle">Custom BCP-47 value</label>
           <input
             className={"input " + (targetErr ? "border-red-500" : "")}
+            aria-label="Custom BCP-47 target language"
             placeholder="e.g. zh-Hans, en-US, sr-Latn"
             defaultValue={config.general.target_language}
             onBlur={(e) => {
@@ -80,6 +82,7 @@ export function GeneralSection() {
         <label className="label">Default source</label>
         <input
           className={"input " + (fromErr ? "border-red-500" : "")}
+          aria-label="Default source language (auto or BCP-47)"
           value={config.general.default_from}
           onChange={(e) => {
             const v = e.target.value.trim();

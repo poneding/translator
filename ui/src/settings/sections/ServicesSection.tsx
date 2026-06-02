@@ -124,6 +124,7 @@ function ServiceRow({
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
           <input
             type="checkbox"
+            aria-label={`Enable ${meta.name}`}
             checked={enabled}
             onChange={(e) => onToggle(e.target.checked)}
             className="h-4 w-4 accent-[rgb(var(--accent))]"
@@ -141,6 +142,7 @@ function ServiceRow({
             <input
               type="number"
               className="input w-24"
+              aria-label={`${meta.name} priority (lower = shown first)`}
               value={priority}
               min={0}
               max={255}
@@ -171,12 +173,14 @@ function SingleApiKey({ serviceId }: { serviceId: ServiceId }) {
         <input
           type="password"
           className="input"
+          aria-label={`${serviceId} API key`}
           placeholder="••••••"
           value={key}
           onChange={(e) => setKey(e.target.value)}
         />
         <button
           className="btn btn-primary"
+          aria-label={`Save ${serviceId} API key to OS Keychain`}
           disabled={!key}
           onClick={async () => {
             try {
@@ -192,6 +196,7 @@ function SingleApiKey({ serviceId }: { serviceId: ServiceId }) {
         </button>
         <button
           className="btn"
+          aria-label={`Remove ${serviceId} API key from OS Keychain`}
           onClick={async () => {
             try {
               await api.deleteApiKey(serviceId);
@@ -253,6 +258,7 @@ function YoudaoCreds({
           <label className="label">App Key</label>
           <input
             className="input"
+            aria-label="Youdao App Key"
             value={appKey}
             onChange={(e) => saveAndToast({ ...options, appKey: e.target.value })}
           />
@@ -262,6 +268,7 @@ function YoudaoCreds({
           <input
             type="password"
             className="input"
+            aria-label="Youdao App Secret"
             value={appSecret}
             onChange={(e) => saveAndToast({ ...options, appSecret: e.target.value })}
           />
@@ -325,6 +332,7 @@ function OpenAICompat({
         <label className="label">Presets</label>
         <select
           className="input"
+          aria-label="OpenAI-compatible preset"
           value={preset}
           onChange={(e) => {
             const next = OPENAI_PRESETS.find((p) => p.id === e.target.value);
@@ -344,6 +352,7 @@ function OpenAICompat({
           <label className="label">Base URL</label>
           <input
             className="input"
+            aria-label="OpenAI-compatible base URL"
             value={baseUrl}
             disabled={locked}
             onChange={(e) => onSave({ ...options, baseUrl: e.target.value })}
@@ -353,6 +362,7 @@ function OpenAICompat({
           <label className="label">Model</label>
           <input
             className="input"
+            aria-label="OpenAI-compatible model name"
             value={model}
             disabled={locked}
             onChange={(e) => onSave({ ...options, model: e.target.value })}
@@ -365,12 +375,14 @@ function OpenAICompat({
           <input
             type="password"
             className="input"
+            aria-label="OpenAI-compatible API key"
             placeholder="••••••"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
           />
           <button
             className="btn btn-primary"
+            aria-label="Save OpenAI-compatible API key to OS Keychain"
             disabled={!apiKey}
             onClick={async () => {
               try {
