@@ -1,9 +1,8 @@
 //! DeepL translation service.
 //!
-//! Endpoint: `https://api-free.deepl.com/v2/translate` (Free) or
-//! `https://api.deepl.com/v2/translate` (Pro).
-//! Auth: `Authorization: DeepL-Auth-Key <KEY>` header.
-//! Body: `application/x-www-form-urlencoded`.
+//! Uses the web JSON-RPC endpoint without credentials by default, matching
+//! Easydict's DeepL service. If an auth key is configured, it uses the
+//! official DeepL API instead.
 //!
 //! See DESIGN.md §4.2.2.
 
@@ -18,6 +17,7 @@ use crate::service::{ApiKeyRequirement, ServiceConfig, TranslationService};
 
 const DEFAULT_FREE_BASE: &str = "https://api-free.deepl.com";
 const DEFAULT_PRO_BASE: &str = "https://api.deepl.com";
+const DEFAULT_WEB_URL: &str = "https://www2.deepl.com/jsonrpc";
 
 /// DeepL service implementation.
 pub struct DeepLService;
@@ -37,6 +37,14 @@ impl DeepLService {
             "pro" => DEFAULT_PRO_BASE.to_string(),
             _ => DEFAULT_FREE_BASE.to_string(),
         }
+    }
+
+    fn resolve_web_url(cfg: &ServiceConfig) -> String {
+        cfg.options
+            .get("web_base_url")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim_end_matches('/').to_string())
+            .unwrap_or_else(|| DEFAULT_WEB_URL.to_string())
     }
 
     /// Map a DeepL error response to a typed `ServiceError`.
@@ -67,72 +75,23 @@ impl DeepLService {
             },
         }
     }
-}
 
-/// Parse a Retry-After header. Supports delta-seconds (integer) and HTTP-date.
-/// Returns the wait in milliseconds.
-fn parse_retry_after_ms(header: Option<&str>) -> Option<u64> {
-    let s = header?.trim();
-    if let Ok(secs) = s.parse::<u64>() {
-        return Some(secs * 1000);
-    }
-    // HTTP-date form (RFC 7231): not commonly used by DeepL, omitted for now.
-    None
-}
-
-#[async_trait]
-impl TranslationService for DeepLService {
-    fn id(&self) -> ServiceId {
-        ServiceId::DeepL
-    }
-
-    fn display_name(&self) -> &'static str {
-        "DeepL"
-    }
-
-    fn api_key_requirement(&self) -> ApiKeyRequirement {
-        ApiKeyRequirement::Required
-    }
-
-    fn options_schema(&self) -> serde_json::Value {
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                "endpoint": {
-                    "type": "string",
-                    "title": "Endpoint",
-                    "description": "DeepL endpoint tier.",
-                    "enum": ["free", "pro"],
-                    "default": "free"
-                },
-                "base_url": {
-                    "type": "string",
-                    "title": "Base URL (override)",
-                    "description": "Override the base URL. Useful for self-hosted proxies or testing. Leave empty for default."
-                }
-            }
-        })
-    }
-
-    async fn translate(
-        &self,
+    async fn translate_official(
         req: &TranslateRequest,
         cfg: &ServiceConfig,
-        api_key: Option<&str>,
+        key: &str,
         client: &Client,
     ) -> ServiceResult<TranslateResult> {
-        let key =
-            api_key.ok_or_else(|| ServiceError::MissingCredentials("deepl.apiKey".to_string()))?;
         let started = Instant::now();
 
         let base_url = Self::resolve_base_url(cfg);
 
-        let mut form: Vec<(&str, &str)> = vec![
-            ("text", req.text.as_str()),
-            ("target_lang", req.to.as_str()),
+        let mut form: Vec<(&str, String)> = vec![
+            ("text", req.text.clone()),
+            ("target_lang", deepl_language_code(req.to.as_str(), false)),
         ];
         if let Some(from) = req.from.as_deref() {
-            form.push(("source_lang", from));
+            form.push(("source_lang", deepl_language_code(from, true)));
         }
 
         let response = client
@@ -170,10 +129,157 @@ impl TranslationService for DeepLService {
             service_id: ServiceId::DeepL,
             service_name: "DeepL".to_string(),
             text: first.text,
+            audio_url: None,
             detected_source: first.detected_source_language,
             elapsed_ms,
+            dictionary: None,
             extra: None,
         })
+    }
+
+    async fn translate_web(
+        req: &TranslateRequest,
+        cfg: &ServiceConfig,
+        client: &Client,
+    ) -> ServiceResult<TranslateResult> {
+        let started = Instant::now();
+        let request_id = deepl_request_id();
+        let i_count = req.text.matches('i').count() as i64;
+        let timestamp = deepl_timestamp(i_count);
+        let source_lang = req
+            .from
+            .as_deref()
+            .map(|from| deepl_language_code(from, true))
+            .unwrap_or_else(|| "auto".to_string());
+        let target_lang = deepl_language_code(req.to.as_str(), false);
+
+        let mut params = serde_json::json!({
+            "texts": [{ "text": req.text, "requestAlternatives": 3 }],
+            "splitting": "newlines",
+            "lang": {
+                "source_lang_user_selected": source_lang,
+                "target_lang": target_lang,
+            },
+            "timestamp": timestamp,
+        });
+
+        if req.to.contains('-') {
+            params["commonJobParams"] = serde_json::json!({
+                "regionalVariant": req.to,
+                "mode": "translate",
+                "browserType": 1,
+                "textType": "plaintext",
+            });
+        }
+
+        let payload = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "LMT_handle_texts",
+            "id": request_id,
+            "params": params,
+        });
+        let body = deepl_rpc_body(payload, request_id)?;
+
+        let response = client
+            .post(Self::resolve_web_url(cfg))
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Self::map_error(status, None, body));
+        }
+
+        let parsed: DeepLWebResponse = response
+            .json()
+            .await
+            .map_err(|e| ServiceError::Parse(format!("deepl web response: {e}")))?;
+        let result = parsed
+            .result
+            .ok_or_else(|| ServiceError::Parse("deepl web returned no result".to_string()))?;
+        let text = result
+            .texts
+            .into_iter()
+            .next()
+            .map(|item| item.text)
+            .filter(|text| !text.trim().is_empty())
+            .ok_or_else(|| ServiceError::Parse("deepl web returned no text".to_string()))?;
+
+        Ok(TranslateResult {
+            service_id: ServiceId::DeepL,
+            service_name: "DeepL".to_string(),
+            text,
+            audio_url: None,
+            detected_source: result.lang,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            dictionary: None,
+            extra: None,
+        })
+    }
+}
+
+/// Parse a Retry-After header. Supports delta-seconds (integer) and HTTP-date.
+/// Returns the wait in milliseconds.
+fn parse_retry_after_ms(header: Option<&str>) -> Option<u64> {
+    let s = header?.trim();
+    if let Ok(secs) = s.parse::<u64>() {
+        return Some(secs * 1000);
+    }
+    // HTTP-date form (RFC 7231): not commonly used by DeepL, omitted for now.
+    None
+}
+
+#[async_trait]
+impl TranslationService for DeepLService {
+    fn id(&self) -> ServiceId {
+        ServiceId::DeepL
+    }
+
+    fn display_name(&self) -> &'static str {
+        "DeepL"
+    }
+
+    fn api_key_requirement(&self) -> ApiKeyRequirement {
+        ApiKeyRequirement::Optional
+    }
+
+    fn options_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "endpoint": {
+                    "type": "string",
+                    "title": "Endpoint",
+                    "description": "DeepL endpoint tier.",
+                    "enum": ["free", "pro"],
+                    "default": "free"
+                },
+                "base_url": {
+                    "type": "string",
+                    "title": "Base URL (override)",
+                    "description": "Override the base URL. Useful for self-hosted proxies or testing. Leave empty for default."
+                },
+                "web_base_url": {
+                    "type": "string",
+                    "title": "Web JSON-RPC URL (override)"
+                }
+            }
+        })
+    }
+
+    async fn translate(
+        &self,
+        req: &TranslateRequest,
+        cfg: &ServiceConfig,
+        api_key: Option<&str>,
+        client: &Client,
+    ) -> ServiceResult<TranslateResult> {
+        match api_key.map(str::trim).filter(|key| !key.is_empty()) {
+            Some(key) => Self::translate_official(req, cfg, key, client).await,
+            None => Self::translate_web(req, cfg, client).await,
+        }
     }
 }
 
@@ -187,6 +293,63 @@ struct DeepLTranslation {
     text: String,
     #[serde(default)]
     detected_source_language: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeepLWebResponse {
+    result: Option<DeepLWebResult>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeepLWebResult {
+    texts: Vec<DeepLWebText>,
+    #[serde(default)]
+    lang: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeepLWebText {
+    text: String,
+}
+
+fn deepl_language_code(code: &str, source: bool) -> String {
+    let normalized = code.trim().replace('_', "-");
+    if source && normalized.eq_ignore_ascii_case("auto") {
+        return "auto".to_string();
+    }
+    let primary = normalized.split('-').next().unwrap_or(normalized.as_str());
+    primary.to_ascii_uppercase()
+}
+
+fn deepl_request_id() -> i64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos() as i64)
+        .unwrap_or(0);
+    100_000_000 + (now.abs() % 89_999_000)
+}
+
+fn deepl_timestamp(i_count: i64) -> i64 {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0);
+    if i_count == 0 {
+        return timestamp;
+    }
+    let count = i_count + 1;
+    timestamp - (timestamp % count) + count
+}
+
+fn deepl_rpc_body(payload: serde_json::Value, request_id: i64) -> ServiceResult<String> {
+    let body = serde_json::to_string(&payload)
+        .map_err(|e| ServiceError::Parse(format!("deepl web request: {e}")))?;
+    let spaced = if (request_id + 5) % 29 == 0 || (request_id + 3) % 13 == 0 {
+        body.replace("\"method\":\"", "\"method\" : \"")
+    } else {
+        body.replace("\"method\":\"", "\"method\": \"")
+    };
+    Ok(spaced)
 }
 
 // =============================================================================
@@ -214,7 +377,10 @@ mod tests {
             id: ServiceId::DeepL,
             enabled: true,
             priority: 0,
-            options: json!({ "base_url": mock.uri() }),
+            options: json!({
+                "base_url": mock.uri(),
+                "web_base_url": format!("{}/jsonrpc", mock.uri()),
+            }),
         }
     }
 
@@ -278,20 +444,32 @@ mod tests {
             .unwrap();
     }
 
-    // ---- S3: missing api key ----
+    // ---- S3: missing api key uses web fallback ----
     #[tokio::test]
-    async fn translate_missing_api_key() {
+    async fn translate_missing_api_key_uses_web_fallback() {
         let server = MockServer::start().await;
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "DE");
-        let err = DeepLService
+        Mock::given(method("POST"))
+            .and(path("/jsonrpc"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "jsonrpc": "2.0",
+                "result": {
+                    "texts": [{ "text": "Hallo" }],
+                    "lang": "EN"
+                }
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let result = DeepLService
             .translate(&req, &cfg, None, &Client::new())
             .await
-            .expect_err("should fail without key");
-        assert!(
-            matches!(err, ServiceError::MissingCredentials(_)),
-            "got: {err:?}"
-        );
+            .expect("web fallback should work without key");
+
+        assert_eq!(result.text, "Hallo");
+        assert_eq!(result.detected_source.as_deref(), Some("EN"));
     }
 
     // ---- S4: 401 -> invalid_credentials ----

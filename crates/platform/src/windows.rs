@@ -15,6 +15,8 @@
 
 use async_trait::async_trait;
 use std::sync::OnceLock;
+use std::thread;
+use std::time::{Duration, Instant};
 use windows::core::{Interface, BSTR};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::System::Com::{
@@ -24,6 +26,7 @@ use windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, IUIAutomationTextPattern, IUIAutomationTextRange,
     IUIAutomationTextRangeArray, UIA_TextPatternId,
 };
+use windows::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYEVENTF_KEYUP, VK_C, VK_CONTROL};
 use windows::Win32::UI::WindowsAndMessaging::GetPhysicalCursorPos;
 
 use crate::{Rect, SelectionError, SelectionMonitor};
@@ -106,6 +109,63 @@ fn read_focused_selection() -> Result<(Option<String>, Option<Rect>), SelectionE
     Ok((text, None))
 }
 
+/// Read selection by asking the frontmost application to copy it.
+///
+/// UI Automation returns empty ranges in several desktop apps even when text is
+/// visibly selected. Simulated Ctrl+C is the same fallback Easydict uses on
+/// macOS: it is less precise, so it only runs after UIA fails or returns empty.
+fn read_selection_by_clipboard() -> Result<Option<String>, SelectionError> {
+    let previous_text = clipboard_win::get_clipboard_string().ok();
+    let previous_seq = clipboard_win::seq_num().map(|num| num.get());
+
+    send_ctrl_c();
+    let copied = wait_for_clipboard_text(previous_seq);
+
+    if let Some(text) = previous_text {
+        let _ = clipboard_win::set_clipboard_string(&text);
+    }
+
+    copied.map(|text| {
+        text.and_then(|text| {
+            let trimmed = text.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        })
+    })
+}
+
+fn send_ctrl_c() {
+    unsafe {
+        keybd_event(VK_CONTROL.0 as u8, 0, Default::default(), 0);
+        keybd_event(VK_C.0 as u8, 0, Default::default(), 0);
+        keybd_event(VK_C.0 as u8, 0, KEYEVENTF_KEYUP, 0);
+        keybd_event(VK_CONTROL.0 as u8, 0, KEYEVENTF_KEYUP, 0);
+    }
+}
+
+fn wait_for_clipboard_text(previous_seq: Option<u32>) -> Result<Option<String>, SelectionError> {
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_millis(350) {
+        thread::sleep(Duration::from_millis(25));
+
+        if let Some(previous_seq) = previous_seq {
+            if clipboard_win::seq_num().map(|num| num.get()) == Some(previous_seq) {
+                continue;
+            }
+        }
+
+        return match clipboard_win::get_clipboard_string() {
+            Ok(text) => Ok(Some(text)),
+            Err(error) => Err(SelectionError::Platform(format!("clipboard copy: {error}"))),
+        };
+    }
+
+    Ok(None)
+}
+
 // ---------------------------------------------------------------------------
 // SelectionMonitor impl
 // ---------------------------------------------------------------------------
@@ -135,9 +195,16 @@ impl Default for WindowsSelection {
 #[async_trait]
 impl SelectionMonitor for WindowsSelection {
     async fn get_selected_text(&self) -> Result<Option<String>, SelectionError> {
-        let res = tokio::task::spawn_blocking(read_focused_selection)
-            .await
-            .map_err(|e| SelectionError::Platform(format!("join: {e}")))??;
+        let res = tokio::task::spawn_blocking(|| match read_focused_selection() {
+            Ok((Some(text), bounds)) => Ok((Some(text), bounds)),
+            Ok((None, bounds)) => Ok((read_selection_by_clipboard()?, bounds)),
+            Err(error) => match read_selection_by_clipboard() {
+                Ok(text) => Ok((text, None)),
+                Err(_) => Err(error),
+            },
+        })
+        .await
+        .map_err(|e| SelectionError::Platform(format!("join: {e}")))??;
         Ok(res.0)
     }
 

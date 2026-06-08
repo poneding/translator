@@ -7,12 +7,12 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 edition = "2021"
 rust-version = "1.81"
 license = "GPL-3.0-only"
 authors = ["translator contributors"]
-repository = "https://github.com/your-org/translator"
+repository = "https://github.com/poneding/translator"
 
 [workspace.dependencies]
 # async + runtime
@@ -49,6 +49,7 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-os = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-autostart = "2"
 
 # tauri build
 tauri-build = { version = "2", features = [] }

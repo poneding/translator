@@ -21,6 +21,10 @@ futures = { workspace = true }
 uuid = { version = "1.11", features = ["v4"] }
 hmac = "0.12"
 sha2 = "0.10"
+aes = "0.8"
+base64 = "0.22"
+cbc = { version = "0.1", features = ["alloc", "block-padding"] }
+md5 = "0.7"
 
 # i18n: enable `rust_i18n` macro OR use fluent directly.
 # For v1 we keep it trait-based; frontend handles UI strings via fluent .ftl.

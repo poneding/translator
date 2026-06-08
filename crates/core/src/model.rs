@@ -84,11 +84,103 @@ pub struct TranslateResult {
     pub service_name: String,
     /// Translated text.
     pub text: String,
+    /// Primary source-word audio URL, when the service provides one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio_url: Option<String>,
     /// Language code detected by the service, if any.
     pub detected_source: Option<String>,
     /// Wall-clock time spent on the request.
     pub elapsed_ms: u64,
+    /// Structured dictionary details for word lookup results.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dictionary: Option<DictionaryResult>,
     /// Optional extras (e.g. Youdao dictionary entries).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra: Option<serde_json::Value>,
+}
+
+/// Detailed dictionary data aligned with Easydict word-result rendering.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DictionaryResult {
+    /// Pronunciation rows such as US and UK phonetics.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub phonetics: Vec<WordPhonetic>,
+    /// Meanings grouped by part of speech.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<DictionaryPart>,
+    /// Word form transformations such as plural or past tense.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exchanges: Vec<WordExchange>,
+    /// Simple word or web translation entries.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub simple_words: Vec<SimpleDictionaryWord>,
+    /// Dictionary tags such as exam categories.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+}
+
+impl DictionaryResult {
+    /// Returns whether no displayable dictionary data is present.
+    pub fn is_empty(&self) -> bool {
+        self.phonetics.is_empty()
+            && self.parts.is_empty()
+            && self.exchanges.is_empty()
+            && self.simple_words.is_empty()
+            && self.tags.is_empty()
+    }
+
+    /// Return the first playable phonetic URL, matching Easydict's source-audio behavior.
+    pub fn primary_audio_url(&self) -> Option<String> {
+        self.phonetics
+            .iter()
+            .find_map(|phonetic| phonetic.audio_url.clone())
+    }
+}
+
+/// A single phonetic row for a word.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WordPhonetic {
+    /// Display label, such as `US`, `UK`, or `Pinyin`.
+    pub label: String,
+    /// Phonetic text without surrounding slashes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    /// Playable pronunciation URL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio_url: Option<String>,
+    /// Accent id used by the provider.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accent: Option<String>,
+}
+
+/// A part-of-speech group with one or more meanings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DictionaryPart {
+    /// Abbreviated part of speech such as `n.` or `v.`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<String>,
+    /// Meanings belonging to this part of speech.
+    pub means: Vec<String>,
+}
+
+/// A word-form exchange entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WordExchange {
+    /// Form label from the dictionary service.
+    pub name: String,
+    /// Alternative forms under the label.
+    pub words: Vec<String>,
+}
+
+/// A simple dictionary candidate or web translation entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleDictionaryWord {
+    /// Candidate word or phrase.
+    pub word: String,
+    /// Optional part of speech.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<String>,
+    /// Meanings for this candidate.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub means: Vec<String>,
 }

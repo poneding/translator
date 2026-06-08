@@ -4,7 +4,7 @@
 //! - Open Settings
 //! - Quit
 //!
-//! Left-click on the tray icon also opens the settings window.
+//! Left-click on the tray icon also opens the main translation window.
 
 use tauri::{
     image::Image,
@@ -17,20 +17,27 @@ const TRAY_ICON_BYTES: &[u8] = include_bytes!("../icons/icon.png");
 
 /// Build the tray icon and menu.
 pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    let open_main = MenuItem::with_id(app, "open_main", "Open Translator", true, None::<&str>)?;
     let open_settings =
         MenuItem::with_id(app, "open_settings", "Open Settings", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open_settings, &quit])?;
+    let menu = Menu::with_items(app, &[&open_main, &open_settings, &quit])?;
 
     let icon = Image::from_bytes(TRAY_ICON_BYTES)
         .map_err(|e| tauri::Error::AssetNotFound(e.to_string()))?;
 
     TrayIconBuilder::with_id("main")
         .icon(icon)
-        .tooltip("translator")
+        .tooltip("Translator")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
+            "open_main" => {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
             "open_settings" => {
                 if let Some(win) = app.get_webview_window("settings") {
                     let _ = win.show();
@@ -50,7 +57,7 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             } = event
             {
                 let app = tray.app_handle();
-                if let Some(win) = app.get_webview_window("settings") {
+                if let Some(win) = app.get_webview_window("main") {
                     let _ = win.show();
                     let _ = win.set_focus();
                 }

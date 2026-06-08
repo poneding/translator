@@ -1,32 +1,47 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "translator",
-  "version": "0.1.0",
+  "productName": "Translator",
+  "version": "0.1.0-alpha.1",
   "identifier": "dev.translator.desktop",
   "build": {
-    "beforeDevCommand": "C:\\Users\\dp\\Easydict\\translator\\build-ui.bat && npm run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "C:\\Users\\dp\\Easydict\\translator\\build-ui.bat",
-    "frontendDist": "C:\\Users\\dp\\Easydict\\translator\\ui\\dist"
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../../ui/dist"
   },
   "app": {
     "windows": [
       {
-        "label": "settings",
-        "title": "translator — Settings",
+        "label": "main",
+        "title": "Translator",
         "url": "index.html",
+        "width": 920,
+        "height": 680,
+        "minWidth": 760,
+        "minHeight": 560,
+        "resizable": true,
+        "fullscreen": false,
+        "devtools": true,
+        "visible": true,
+        "decorations": true
+      },
+      {
+        "label": "settings",
+        "title": "Translator — Settings",
+        "url": "settings.html",
         "width": 880,
         "height": 640,
         "minWidth": 720,
         "minHeight": 480,
         "resizable": true,
         "fullscreen": false,
+        "devtools": true,
         "visible": false,
         "decorations": true
       },
       {
         "label": "popup",
-        "title": "translator",
+        "title": "Translator",
         "url": "popup.html",
         "width": 480,
         "height": 320,
@@ -36,20 +51,14 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
-        "focus": false,
+        "focus": true,
+        "devtools": true,
         "shadow": true,
         "visibleOnAllWorkspaces": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: ipc: http://ipc.localhost"
-    },
-    "trayIcon": {
-      "id": "main",
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false,
-      "tooltip": "translator"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https: ipc: http://ipc.localhost"
     }
   },
   "bundle": {

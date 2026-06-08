@@ -1,7 +1,7 @@
-//! Google Cloud Translation v3 service.
+//! Google Translate service.
 //!
-//! Endpoint: `POST https://translation.googleapis.com/v3/projects/{projectId}/locations/global:translateText`
-//! Auth: API key (`?key=...`).
+//! Uses Cloud Translation v3 when both `projectId` and an API key are
+//! configured, otherwise falls back to the public GTX endpoint.
 //!
 //! See DESIGN.md §4.2.3.
 
@@ -14,7 +14,8 @@ use crate::error::{ServiceError, ServiceResult};
 use crate::model::{ServiceId, TranslateRequest, TranslateResult};
 use crate::service::{ApiKeyRequirement, ServiceConfig, TranslationService};
 
-const DEFAULT_BASE: &str = "https://translation.googleapis.com";
+const DEFAULT_CLOUD_BASE: &str = "https://translation.googleapis.com";
+const DEFAULT_GTX_BASE: &str = "https://translate.googleapis.com";
 /// Default v3 location; per DESIGN.md we always use `global`.
 const LOCATION: &str = "global";
 
@@ -23,22 +24,158 @@ pub struct GoogleService;
 
 impl GoogleService {
     /// Resolve base URL (option override; default = translation.googleapis.com).
-    fn resolve_base_url(cfg: &ServiceConfig) -> String {
+    fn resolve_cloud_base_url(cfg: &ServiceConfig) -> String {
         cfg.options
             .get("base_url")
             .and_then(|v| v.as_str())
             .map(|s| s.trim_end_matches('/').to_string())
-            .unwrap_or_else(|| DEFAULT_BASE.to_string())
+            .unwrap_or_else(|| DEFAULT_CLOUD_BASE.to_string())
+    }
+
+    /// Resolve the public GTX base URL.
+    fn resolve_gtx_base_url(cfg: &ServiceConfig) -> String {
+        cfg.options
+            .get("gtx_base_url")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim_end_matches('/').to_string())
+            .unwrap_or_else(|| DEFAULT_GTX_BASE.to_string())
     }
 
     /// Resolve GCP project ID from `cfg.options`.
-    fn resolve_project(cfg: &ServiceConfig) -> ServiceResult<String> {
+    fn resolve_project(cfg: &ServiceConfig) -> Option<String> {
         cfg.options
             .get("projectId")
             .and_then(|v| v.as_str())
+            .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
-            .ok_or_else(|| ServiceError::MissingCredentials("google.projectId".to_string()))
+    }
+
+    /// Convert app language ids into Google web language ids.
+    fn gtx_language(code: &str) -> String {
+        match code.to_ascii_lowercase().as_str() {
+            "zh-hans" | "zh-cn" => "zh-CN".to_string(),
+            "zh-hant" | "zh-tw" | "zh-hk" => "zh-TW".to_string(),
+            "" => "auto".to_string(),
+            other => other.to_string(),
+        }
+    }
+
+    async fn translate_cloud(
+        req: &TranslateRequest,
+        cfg: &ServiceConfig,
+        project: String,
+        key: &str,
+        client: &Client,
+    ) -> ServiceResult<TranslateResult> {
+        let started = Instant::now();
+        let base_url = Self::resolve_cloud_base_url(cfg);
+
+        let body = TranslateTextRequest {
+            source_language_code: req.from.as_deref(),
+            target_language_code: req.to.as_str(),
+            contents: vec![req.text.as_str()],
+            mime_type: "text/plain",
+        };
+
+        let url = format!(
+            "{base_url}/v3/projects/{project}/locations/{LOCATION}:translateText?key={key}"
+        );
+
+        let response = client.post(&url).json(&body).send().await?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(map_google_error(
+                status,
+                response.text().await.unwrap_or_default(),
+            ));
+        }
+
+        let parsed: TranslateTextResponse = response
+            .json()
+            .await
+            .map_err(|e| ServiceError::Parse(format!("google v3 json: {e}")))?;
+
+        let item =
+            parsed.translations.into_iter().next().ok_or_else(|| {
+                ServiceError::Parse("google v3: no translations[] entry".to_string())
+            })?;
+
+        Ok(TranslateResult {
+            service_id: ServiceId::Google,
+            service_name: "Google Translate".to_string(),
+            text: item.translated_text,
+            audio_url: None,
+            detected_source: item.detected_language_code,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            dictionary: None,
+            extra: None,
+        })
+    }
+
+    async fn translate_gtx(
+        req: &TranslateRequest,
+        cfg: &ServiceConfig,
+        client: &Client,
+    ) -> ServiceResult<TranslateResult> {
+        let started = Instant::now();
+        let base_url = Self::resolve_gtx_base_url(cfg);
+        let source = req
+            .from
+            .as_deref()
+            .map(Self::gtx_language)
+            .unwrap_or_else(|| "auto".to_string());
+        let target = Self::gtx_language(&req.to);
+        let query = [
+            ("q", req.text.as_str()),
+            ("sl", source.as_str()),
+            ("tl", target.as_str()),
+            ("dt", "t"),
+            ("dj", "1"),
+            ("ie", "UTF-8"),
+            ("client", "gtx"),
+        ];
+
+        let response = client
+            .get(format!("{base_url}/translate_a/single"))
+            .query(&query)
+            .send()
+            .await?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(map_google_error(
+                status,
+                response.text().await.unwrap_or_default(),
+            ));
+        }
+
+        let parsed: GtxResponse = response
+            .json()
+            .await
+            .map_err(|e| ServiceError::Parse(format!("google gtx json: {e}")))?;
+        let text = parsed
+            .sentences
+            .into_iter()
+            .filter_map(|sentence| sentence.trans)
+            .collect::<String>()
+            .trim()
+            .to_string();
+        if text.is_empty() {
+            return Err(ServiceError::Parse(
+                "google gtx: empty translated text".to_string(),
+            ));
+        }
+
+        Ok(TranslateResult {
+            service_id: ServiceId::Google,
+            service_name: "Google Translate".to_string(),
+            text,
+            audio_url: None,
+            detected_source: parsed.src,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            dictionary: None,
+            extra: None,
+        })
     }
 }
 
@@ -68,6 +205,20 @@ struct TranslationItem {
 }
 
 #[derive(Deserialize)]
+struct GtxResponse {
+    #[serde(default)]
+    sentences: Vec<GtxSentence>,
+    #[serde(default)]
+    src: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct GtxSentence {
+    #[serde(default)]
+    trans: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct GoogleErrorBody {
     error: Option<GoogleError>,
 }
@@ -78,6 +229,34 @@ struct GoogleError {
     code: Option<u16>,
     message: Option<String>,
     status: Option<String>,
+}
+
+fn map_google_error(status: StatusCode, body_text: String) -> ServiceError {
+    let parsed: Result<GoogleErrorBody, _> = serde_json::from_str(&body_text);
+    let mapped = match (status, parsed.as_ref().ok().and_then(|b| b.error.as_ref())) {
+        (StatusCode::UNAUTHORIZED, _) => "invalid_credentials",
+        (StatusCode::FORBIDDEN, _) => "invalid_credentials",
+        (StatusCode::TOO_MANY_REQUESTS, _) => "rate_limited",
+        (StatusCode::PAYMENT_REQUIRED, _) => "quota_exceeded",
+        (_, Some(err)) => match err.status.as_deref() {
+            Some("INVALID_ARGUMENT") => "bad_request",
+            Some("PERMISSION_DENIED") => "invalid_credentials",
+            Some("RESOURCE_EXHAUSTED") => "quota_exceeded",
+            Some("UNAVAILABLE") => "upstream",
+            _ => "api",
+        },
+        (_, None) if status.is_server_error() => "upstream",
+        (_, None) => "api",
+    };
+    let message = parsed
+        .ok()
+        .and_then(|b| b.error)
+        .and_then(|e| e.message)
+        .unwrap_or(body_text);
+    ServiceError::Api {
+        code: mapped.to_string(),
+        message,
+    }
 }
 
 #[async_trait]
@@ -91,16 +270,16 @@ impl TranslationService for GoogleService {
     }
 
     fn api_key_requirement(&self) -> ApiKeyRequirement {
-        ApiKeyRequirement::Required
+        ApiKeyRequirement::Optional
     }
 
     fn options_schema(&self) -> serde_json::Value {
         serde_json::json!({
             "type": "object",
-            "required": ["projectId"],
             "properties": {
                 "projectId": { "type": "string", "title": "GCP Project ID" },
-                "base_url":  { "type": "string", "title": "Base URL (override)" }
+                "base_url":  { "type": "string", "title": "Cloud Base URL (override)" },
+                "gtx_base_url":  { "type": "string", "title": "GTX Base URL (override)" }
             }
         })
     }
@@ -112,74 +291,12 @@ impl TranslationService for GoogleService {
         api_key: Option<&str>,
         client: &Client,
     ) -> ServiceResult<TranslateResult> {
-        let key =
-            api_key.ok_or_else(|| ServiceError::MissingCredentials("google.apiKey".to_string()))?;
-        let project = Self::resolve_project(cfg)?;
-        let started = Instant::now();
-        let base_url = Self::resolve_base_url(cfg);
-
-        let body = TranslateTextRequest {
-            source_language_code: req.from.as_deref(),
-            target_language_code: req.to.as_str(),
-            contents: vec![req.text.as_str()],
-            mime_type: "text/plain",
-        };
-
-        let url = format!(
-            "{base_url}/v3/projects/{project}/locations/{LOCATION}:translateText?key={key}"
-        );
-
-        let response = client.post(&url).json(&body).send().await?;
-
-        let status = response.status();
-        if !status.is_success() {
-            // Try to parse the structured error body; fall back to status text.
-            let body_text = response.text().await.unwrap_or_default();
-            let parsed: Result<GoogleErrorBody, _> = serde_json::from_str(&body_text);
-            let mapped = match (status, parsed.as_ref().ok().and_then(|b| b.error.as_ref())) {
-                (StatusCode::UNAUTHORIZED, _) => "invalid_credentials",
-                (StatusCode::FORBIDDEN, _) => "invalid_credentials",
-                (StatusCode::TOO_MANY_REQUESTS, _) => "rate_limited",
-                (StatusCode::PAYMENT_REQUIRED, _) => "quota_exceeded",
-                (_, Some(err)) => match err.status.as_deref() {
-                    Some("INVALID_ARGUMENT") => "bad_request",
-                    Some("PERMISSION_DENIED") => "invalid_credentials",
-                    Some("RESOURCE_EXHAUSTED") => "quota_exceeded",
-                    Some("UNAVAILABLE") => "upstream",
-                    _ => "api",
-                },
-                (_, None) => "upstream",
-            };
-            let message = parsed
-                .ok()
-                .and_then(|b| b.error)
-                .and_then(|e| e.message)
-                .unwrap_or(body_text);
-            return Err(ServiceError::Api {
-                code: mapped.to_string(),
-                message,
-            });
+        match (Self::resolve_project(cfg), api_key) {
+            (Some(project), Some(key)) if !key.trim().is_empty() => {
+                Self::translate_cloud(req, cfg, project, key, client).await
+            }
+            _ => Self::translate_gtx(req, cfg, client).await,
         }
-
-        let parsed: TranslateTextResponse = response
-            .json()
-            .await
-            .map_err(|e| ServiceError::Parse(format!("google v3 json: {e}")))?;
-
-        let item =
-            parsed.translations.into_iter().next().ok_or_else(|| {
-                ServiceError::Parse("google v3: no translations[] entry".to_string())
-            })?;
-
-        let elapsed_ms = started.elapsed().as_millis() as u64;
-        Ok(TranslateResult {
-            service_id: ServiceId::Google,
-            service_name: "Google Translate".to_string(),
-            text: item.translated_text,
-            detected_source: item.detected_language_code,
-            elapsed_ms,
-            extra: None,
-        })
     }
 }
 
@@ -252,46 +369,77 @@ mod tests {
         assert_eq!(res.service_id, ServiceId::Google);
     }
 
-    // ---- S2: missing API key ----
-    #[tokio::test]
-    async fn translate_missing_api_key() {
-        let cfg = ServiceConfig {
-            id: ServiceId::Google,
-            enabled: true,
-            priority: 0,
-            options: json!({ "projectId": TEST_PROJECT }),
-        };
-        let req = TranslateRequest {
-            text: "Hi".to_string(),
-            from: None,
-            to: "zh-CN".to_string(),
-        };
-        let err = GoogleService
-            .translate(&req, &cfg, None, &Client::new())
-            .await
-            .unwrap_err();
-        assert!(matches!(err, ServiceError::MissingCredentials(ref s) if s.contains("apiKey")));
+    fn gtx_response(text: &str, detected: &str) -> serde_json::Value {
+        json!({
+            "sentences": [{ "trans": text, "orig": "Hello" }],
+            "src": detected
+        })
     }
 
-    // ---- S3: missing projectId ----
+    // ---- S2: missing API key -> public GTX fallback ----
     #[tokio::test]
-    async fn translate_missing_project_id() {
+    async fn translate_missing_api_key_uses_gtx() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/translate_a/single"))
+            .and(query_param("client", "gtx"))
+            .and(query_param("sl", "auto"))
+            .and(query_param("tl", "zh-CN"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(gtx_response("你好", "en")))
+            .expect(1)
+            .mount(&server)
+            .await;
+
         let cfg = ServiceConfig {
             id: ServiceId::Google,
             enabled: true,
             priority: 0,
-            options: json!({}),
+            options: json!({ "projectId": TEST_PROJECT, "gtx_base_url": server.uri() }),
         };
         let req = TranslateRequest {
-            text: "Hi".to_string(),
+            text: "Hello".to_string(),
             from: None,
             to: "zh-CN".to_string(),
         };
-        let err = GoogleService
+        let res = GoogleService
+            .translate(&req, &cfg, None, &Client::new())
+            .await
+            .unwrap();
+        assert_eq!(res.text, "你好");
+        assert_eq!(res.detected_source.as_deref(), Some("en"));
+    }
+
+    // ---- S3: missing projectId -> public GTX fallback ----
+    #[tokio::test]
+    async fn translate_missing_project_id_uses_gtx() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/translate_a/single"))
+            .and(query_param("client", "gtx"))
+            .and(query_param("sl", "en"))
+            .and(query_param("tl", "zh-CN"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(gtx_response("你好", "en")))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let cfg = ServiceConfig {
+            id: ServiceId::Google,
+            enabled: true,
+            priority: 0,
+            options: json!({ "gtx_base_url": server.uri() }),
+        };
+        let req = TranslateRequest {
+            text: "Hello".to_string(),
+            from: Some("en".to_string()),
+            to: "zh-CN".to_string(),
+        };
+        let res = GoogleService
             .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
             .await
-            .unwrap_err();
-        assert!(matches!(err, ServiceError::MissingCredentials(ref s) if s.contains("projectId")));
+            .unwrap();
+        assert_eq!(res.text, "你好");
+        assert_eq!(res.detected_source.as_deref(), Some("en"));
     }
 
     // ---- S4: 401 -> invalid_credentials ----

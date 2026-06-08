@@ -14,7 +14,7 @@ mod tray;
 use std::sync::Arc;
 
 use tauri::Manager;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use crate::state::AppState;
@@ -23,16 +23,28 @@ fn main() {
     init_tracing();
 
     tauri::Builder::default()
+        .on_window_event(|window, event| {
+            if matches!(window.label(), "main" | "settings") {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        tracing::info!("hotkey pressed, triggering translation");
+                    if event.state() == ShortcutState::Released {
+                        tracing::info!("hotkey released, triggering translation");
                         // on_hotkey is async; spawn it so the handler returns immediately.
                         let app_handle = app.clone();
                         tauri::async_runtime::spawn(async move {
@@ -54,23 +66,39 @@ fn main() {
             // back to the default shortcut and clear the banner flag.
             let mut cfg = translator_core::config::Config::load()
                 .unwrap_or_else(|_| translator_core::config::Config::default());
+            let default_shortcut = translator_core::config::Config::default().shortcut;
             if cfg.hotkey_registration_failed {
                 tracing::warn!(
                     previous = %cfg.shortcut,
                     "previous hotkey registration failed; resetting to default"
                 );
-                cfg.shortcut = "CmdOrCtrl+Shift+D".to_string();
+                cfg.shortcut = default_shortcut.clone();
                 cfg.hotkey_registration_failed = false;
                 if let Err(e) = cfg.save() {
                     tracing::warn!(error = %e, "could not persist hotkey reset");
                 }
             }
 
-            // Register the configured hotkey. The previous default shortcut
-            // (CmdOrCtrl+Shift+D) is now derived from the config above.
-            let shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyD);
-            if let Err(e) = app.global_shortcut().register(shortcut) {
-                tracing::warn!(error = %e, "failed to register default global shortcut");
+            // Register the configured hotkey. If parsing or registration fails,
+            // reset to the default and expose the banner flag in settings.
+            match commands::parse_shortcut(&cfg.shortcut) {
+                Ok(shortcut) => {
+                    if let Err(e) = app.global_shortcut().register(shortcut) {
+                        tracing::warn!(error = %e, shortcut = %cfg.shortcut, "failed to register global shortcut");
+                        cfg.shortcut = default_shortcut.clone();
+                        cfg.hotkey_registration_failed = true;
+                        let _ = cfg.save();
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, shortcut = %cfg.shortcut, "invalid configured shortcut");
+                    cfg.shortcut = default_shortcut.clone();
+                    cfg.hotkey_registration_failed = true;
+                    let _ = cfg.save();
+                    if let Ok(shortcut) = commands::parse_shortcut(&cfg.shortcut) {
+                        let _ = app.global_shortcut().register(shortcut);
+                    }
+                }
             }
 
             // Hide the settings window on launch; it opens via the tray.
@@ -88,15 +116,18 @@ fn main() {
             commands::translate_text,
             commands::show_popup,
             commands::hide_popup,
+            commands::open_main_window,
             commands::open_settings,
             commands::get_config,
             commands::save_config,
+            commands::clear_history,
             commands::get_app_info,
             commands::set_api_key,
             commands::delete_api_key,
             commands::has_api_key,
             commands::update_hotkey,
             commands::copy_to_clipboard,
+            commands::read_clipboard,
             commands::check_permission,
             commands::open_permission_settings,
         ])

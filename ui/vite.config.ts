@@ -2,8 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 
-// Vite multi-page build for Tauri: separate entry for settings (index.html)
-// and the popup (popup.html).
+// Vite multi-page build for Tauri: main translator, settings, and popup.
 export default defineConfig(async () => ({
   plugins: [react()],
   clearScreen: false,
@@ -22,7 +21,8 @@ export default defineConfig(async () => ({
     sourcemap: !!process.env.TAURI_DEBUG,
     rollupOptions: {
       input: {
-        settings: resolve(__dirname, "index.html"),
+        main: resolve(__dirname, "index.html"),
+        settings: resolve(__dirname, "settings.html"),
         popup: resolve(__dirname, "popup.html"),
       },
     },

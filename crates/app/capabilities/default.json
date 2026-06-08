@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for the main app windows (settings + popup).",
-  "windows": ["settings", "popup"],
+  "description": "Default capabilities for the main app windows.",
+  "windows": ["main", "settings", "popup"],
   "permissions": [
     "core:default",
     "core:window:allow-show",
@@ -37,6 +37,8 @@
     "os:allow-locale",
 
     "dialog:allow-open",
-    "dialog:allow-message"
+    "dialog:allow-message",
+
+    "autostart:default"
   ]
 }

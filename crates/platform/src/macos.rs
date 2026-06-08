@@ -30,6 +30,10 @@ use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::string::{CFString, CFStringRef};
 use core_graphics::event::CGEvent;
 use core_graphics::geometry::CGPoint;
+use std::io::Write;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
 
 use crate::{Rect, SelectionError, SelectionMonitor};
 
@@ -131,11 +135,12 @@ impl SelectionMonitor for MacOSSelection {
                 &mut text_value as *mut _ as *mut *const _,
             );
             if err != AX_SUCCESS {
-                return Err(SelectionError::Platform(format!(
-                    "AXUIElementCopyAttributeValue(AXSelectedText) returned {err}"
-                )));
+                return read_selection_by_clipboard();
             }
-            Ok(cf_value_to_string(text_value))
+            match cf_value_to_string(text_value).filter(|text| !text.trim().is_empty()) {
+                Some(text) => Ok(Some(text)),
+                None => read_selection_by_clipboard(),
+            }
         }
     }
 
@@ -218,6 +223,61 @@ impl SelectionMonitor for MacOSSelection {
             .map_err(|e| SelectionError::Platform(format!("open(URL): {e}")))?;
         Ok(())
     }
+}
+
+fn read_selection_by_clipboard() -> Result<Option<String>, SelectionError> {
+    let previous_text = read_clipboard_text();
+    copy_selection()?;
+    thread::sleep(Duration::from_millis(120));
+
+    let copied = read_clipboard_text()
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty());
+
+    if let Some(text) = previous_text {
+        let _ = write_clipboard_text(&text);
+    }
+
+    Ok(copied)
+}
+
+fn copy_selection() -> Result<(), SelectionError> {
+    let status = Command::new("osascript")
+        .arg("-e")
+        .arg(r#"tell application "System Events" to keystroke "c" using command down"#)
+        .status()
+        .map_err(|e| SelectionError::Platform(format!("osascript copy: {e}")))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(SelectionError::Platform(format!(
+            "osascript copy exited with {status}"
+        )))
+    }
+}
+
+fn read_clipboard_text() -> Option<String> {
+    let output = Command::new("pbpaste").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    String::from_utf8(output.stdout).ok()
+}
+
+fn write_clipboard_text(text: &str) -> Result<(), SelectionError> {
+    let mut child = Command::new("pbcopy")
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|e| SelectionError::Platform(format!("pbcopy: {e}")))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|e| SelectionError::Platform(format!("pbcopy write: {e}")))?;
+    }
+    child
+        .wait()
+        .map_err(|e| SelectionError::Platform(format!("pbcopy wait: {e}")))?;
+    Ok(())
 }
 
 // =============================================================================

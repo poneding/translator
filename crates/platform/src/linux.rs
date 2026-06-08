@@ -14,6 +14,7 @@
 //! Supported: GNOME 46+, KDE Plasma 5.27+. Other DEs may return `Empty`.
 
 use async_trait::async_trait;
+use std::process::Command;
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
 
@@ -64,11 +65,12 @@ impl Default for LinuxSelection {
 #[async_trait]
 impl SelectionMonitor for LinuxSelection {
     async fn get_selected_text(&self) -> Result<Option<String>, SelectionError> {
+        if let Some(text) = read_primary_selection() {
+            return Ok(Some(text));
+        }
         let _conn = get_or_connect().await?;
         // TODO: resolve the focused accessible via the AT-SPI2 `Registry`
-        // proxy and read its selection through the `Text` interface. Returning
-        // `Ok(None)` is the safe default for v1; the cursor fallback in
-        // `popup_position::compute_popup_position` still positions the popup.
+        // proxy and read its selection through the `Text` interface.
         Ok(None)
     }
 
@@ -94,6 +96,25 @@ impl SelectionMonitor for LinuxSelection {
         // No-op on Linux (no centralized permission UI for AT-SPI).
         Ok(())
     }
+}
+
+fn read_primary_selection() -> Option<String> {
+    [
+        ("wl-paste", &["--primary", "--no-newline"][..]),
+        ("xclip", &["-selection", "primary", "-out"][..]),
+        ("xsel", &["-op"][..]),
+    ]
+    .into_iter()
+    .find_map(|(program, args)| {
+        let output = Command::new(program).args(args).output().ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        String::from_utf8(output.stdout)
+            .ok()
+            .map(|text| text.trim().to_string())
+            .filter(|text| !text.is_empty())
+    })
 }
 
 // ---------------------------------------------------------------------------

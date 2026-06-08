@@ -8,6 +8,7 @@
 
 pub mod config;
 pub mod error;
+pub mod language_direction;
 pub mod model;
 pub mod secrets;
 pub mod service;
@@ -16,6 +17,7 @@ pub mod translator;
 
 pub use config::Config;
 pub use error::{ServiceError, ServiceResult};
+pub use language_direction::{resolve_direction, translate_request, TranslationDirection};
 pub use model::{ServiceId, TranslateRequest, TranslateResult};
 pub use service::{ApiKeyRequirement, ServiceConfig, TranslationService};
 pub use translator::Translator;

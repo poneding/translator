@@ -6,14 +6,14 @@
 
 #[allow(dead_code)]
 pub const MACOS_PERMISSION_GUIDE: &str =
-    "translator needs the Accessibility permission to read your selected text. \
-Open System Settings → Privacy & Security → Accessibility, and enable translator.";
+    "Translator needs the Accessibility permission to read your selected text. \
+Open System Settings → Privacy & Security → Accessibility, and enable Translator.";
 
 #[allow(dead_code)]
 pub const WINDOWS_PERMISSION_GUIDE: &str =
-    "translator uses Windows UI Automation. No special permission is required.";
+    "Translator uses Windows UI Automation. No special permission is required.";
 
 #[allow(dead_code)]
-pub const LINUX_PERMISSION_GUIDE: &str = "translator uses AT-SPI2 over D-Bus. \
+pub const LINUX_PERMISSION_GUIDE: &str = "Translator uses AT-SPI2 over D-Bus. \
 On GNOME 46+ and KDE Plasma 5.27+ this works out of the box. \
 If selection is empty, check that your desktop environment exposes AT-SPI.";

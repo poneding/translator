@@ -83,9 +83,10 @@ cargo test -p translator-core --lib services::
 ## How a release is cut
 
 1. Bump `version` in the root `Cargo.toml` `[workspace.package]`.
-2. Update `CHANGELOG.md` — move entries from `[Unreleased]` to a dated
-   `## [0.1.0] - YYYY-MM-DD` section.
-3. `git tag -s v0.1.0 -m "translator v0.1.0"` and push the tag.
+2. Run `./scripts/changelog.sh preview` to inspect the git-cliff release
+   notes for unreleased commits.
+3. Run `./release.sh v0.1.0`; it regenerates `CHANGELOG.md`, commits the
+   changelog update, creates the tag, and pushes after confirmation.
 4. The `release.yml` workflow builds `.dmg` / `.msi` / `.AppImage` / `.deb`
-   artifacts and opens a draft GitHub release.
-5. Manually verify the draft, then publish.
+   artifacts and opens a draft GitHub release with git-cliff notes attached.
+5. Manually verify the draft artifacts and notes, then publish.

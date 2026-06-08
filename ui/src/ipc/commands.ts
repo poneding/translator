@@ -1,6 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Config, ServiceId, ServiceOutcomeDto } from "../types/bindings";
+import type {
+  Config,
+  ServiceId,
+  ServiceOutcomeDto,
+  TranslationFinishedDto,
+  TranslationOutcomeDto,
+  TranslationStartedDto,
+} from "../types/bindings";
 
 // ---------------------------------------------------------------------------
 // Selection
@@ -25,11 +32,19 @@ export function openPermissionSettings(): Promise<void> {
 export interface TranslateArgs {
   text: string;
   from?: string | null;
-  to: string;
+  to?: string | null;
+  request_id?: string | null;
 }
 
 export function translateText(args: TranslateArgs): Promise<ServiceOutcomeDto[]> {
   return invoke<ServiceOutcomeDto[]>("translate_text", { args });
+}
+
+export function createRequestId(): string {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `translation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +66,10 @@ export function hidePopup(): Promise<void> {
   return invoke<void>("hide_popup");
 }
 
+export function openMainWindow(): Promise<void> {
+  return invoke<void>("open_main_window");
+}
+
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
@@ -65,6 +84,10 @@ export function getConfig(): Promise<Config> {
 
 export function saveConfig(config: Config): Promise<void> {
   return invoke<void>("save_config", { config });
+}
+
+export function clearHistory(): Promise<Config> {
+  return invoke<Config>("clear_history");
 }
 
 export interface AppInfo {
@@ -102,10 +125,49 @@ export function copyToClipboard(text: string): Promise<void> {
   return invoke<void>("copy_to_clipboard", { args: { text } });
 }
 
+export function readClipboard(): Promise<string> {
+  return invoke<string>("read_clipboard");
+}
+
 // ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
 
 export function onHotkeyPressed(handler: () => void): Promise<UnlistenFn> {
   return listen("translator://hotkey-pressed", () => handler());
+}
+
+export function onTranslationStarted(
+  handler: (payload: TranslationStartedDto) => void,
+): Promise<UnlistenFn> {
+  return listen<TranslationStartedDto>(
+    "translator://translation-started",
+    ({ payload }) => handler(payload),
+  );
+}
+
+export function onTranslationOutcome(
+  handler: (payload: TranslationOutcomeDto) => void,
+): Promise<UnlistenFn> {
+  return listen<TranslationOutcomeDto>(
+    "translator://translation-outcome",
+    ({ payload }) => handler(payload),
+  );
+}
+
+export function onTranslationFinished(
+  handler: (payload: TranslationFinishedDto) => void,
+): Promise<UnlistenFn> {
+  return listen<TranslationFinishedDto>(
+    "translator://translation-finished",
+    ({ payload }) => handler(payload),
+  );
+}
+
+export function onConfigUpdated(
+  handler: (payload: Config) => void,
+): Promise<UnlistenFn> {
+  return listen<Config>("translator://config-updated", ({ payload }) =>
+    handler(payload),
+  );
 }

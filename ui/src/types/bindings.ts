@@ -14,7 +14,27 @@ export interface ServiceConfig {
 export interface GeneralConfig {
   target_language: string;
   default_from: string;
+  preferred_languages: string[];
   theme: "light" | "dark" | "system";
+  auto_copy: boolean;
+  launch_at_startup: boolean;
+  proxy: ProxyConfig;
+}
+
+export interface ProxyConfig {
+  enabled: boolean;
+  url: string;
+}
+
+export interface HistoryItem {
+  id: string;
+  source_text: string;
+  translated_text: string;
+  service_id: string;
+  service_name: string;
+  from: string;
+  to: string;
+  created_at_ms: number;
 }
 
 export interface Config {
@@ -22,6 +42,7 @@ export interface Config {
   general: GeneralConfig;
   shortcut: string;
   services: Record<string, ServiceConfig>;
+  history: HistoryItem[];
   hotkey_registration_failed?: boolean;
 }
 
@@ -29,9 +50,42 @@ export interface TranslateResult {
   service_id: ServiceId;
   service_name: string;
   text: string;
+  audio_url?: string | null;
   detected_source: string | null;
   elapsed_ms: number;
+  dictionary?: DictionaryResult | null;
   extra?: Record<string, unknown>;
+}
+
+export interface DictionaryResult {
+  phonetics?: WordPhonetic[];
+  parts?: DictionaryPart[];
+  exchanges?: WordExchange[];
+  simple_words?: SimpleDictionaryWord[];
+  tags?: string[];
+}
+
+export interface WordPhonetic {
+  label: string;
+  value?: string | null;
+  audio_url?: string | null;
+  accent?: string | null;
+}
+
+export interface DictionaryPart {
+  part?: string | null;
+  means: string[];
+}
+
+export interface WordExchange {
+  name: string;
+  words: string[];
+}
+
+export interface SimpleDictionaryWord {
+  word: string;
+  part?: string | null;
+  means?: string[];
 }
 
 export interface ServiceErrorDto {
@@ -44,4 +98,18 @@ export interface ServiceOutcomeDto {
   service_name: string;
   result: TranslateResult | null;
   error: ServiceErrorDto | null;
+}
+
+export interface TranslationStartedDto {
+  request_id: string;
+  outcomes: ServiceOutcomeDto[];
+}
+
+export interface TranslationOutcomeDto {
+  request_id: string;
+  outcome: ServiceOutcomeDto;
+}
+
+export interface TranslationFinishedDto {
+  request_id: string;
 }

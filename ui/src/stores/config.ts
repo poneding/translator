@@ -8,12 +8,14 @@ interface ConfigState {
   error: string | null;
   load: () => Promise<void>;
   save: (cfg: Config) => Promise<void>;
+  setConfig: (cfg: Config) => void;
 }
 
 export const useConfigStore = create<ConfigState>((set) => ({
   config: null,
   loading: false,
   error: null,
+  setConfig: (config) => set({ config, loading: false, error: null }),
   load: async () => {
     set({ loading: true, error: null });
     try {

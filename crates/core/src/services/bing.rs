@@ -1,7 +1,8 @@
 //! Microsoft Bing / Azure Translator service.
 //!
-//! Endpoint: `POST https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from={from}&to={to}`
-//! Auth: `Ocp-Apim-Subscription-Key` header; `Ocp-Apim-Subscription-Region` for regional resources.
+//! Uses Bing's web translator endpoint without credentials by default,
+//! matching Easydict. If an Azure key is configured, it uses the official
+//! Microsoft Translator API instead.
 //!
 //! See DESIGN.md §4.2.4.
 
@@ -15,7 +16,10 @@ use crate::model::{ServiceId, TranslateRequest, TranslateResult};
 use crate::service::{ApiKeyRequirement, ServiceConfig, TranslationService};
 
 const DEFAULT_BASE: &str = "https://api.cognitive.microsofttranslator.com";
+const DEFAULT_WEB_BASE: &str = "https://cn.bing.com";
 const API_VERSION: &str = "3.0";
+const WEB_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 /// Bing / Azure Translator service implementation.
 pub struct BingService;
@@ -38,73 +42,21 @@ impl BingService {
             .map(|s| s.to_string())
             .unwrap_or_else(|| "global".to_string())
     }
-}
 
-#[derive(Serialize)]
-struct BingBody<'a> {
-    #[serde(rename = "Text")]
-    text: &'a str,
-}
-
-#[derive(Deserialize)]
-struct BingResponse {
-    #[serde(default)]
-    translations: Vec<BingTranslation>,
-    #[serde(rename = "detectedLanguage", default)]
-    detected_language: Option<BingDetected>,
-}
-
-#[derive(Deserialize)]
-struct BingTranslation {
-    #[serde(rename = "text")]
-    text: String,
-    #[serde(default, rename = "to")]
-    #[allow(dead_code)]
-    to: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct BingDetected {
-    #[serde(default, rename = "language")]
-    language: Option<String>,
-    #[serde(default, rename = "score")]
-    #[allow(dead_code)]
-    score: Option<f64>,
-}
-
-#[async_trait]
-impl TranslationService for BingService {
-    fn id(&self) -> ServiceId {
-        ServiceId::Bing
+    fn resolve_web_base_url(cfg: &ServiceConfig) -> String {
+        cfg.options
+            .get("web_base_url")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim_end_matches('/').to_string())
+            .unwrap_or_else(|| DEFAULT_WEB_BASE.to_string())
     }
 
-    fn display_name(&self) -> &'static str {
-        "Microsoft Translator"
-    }
-
-    fn api_key_requirement(&self) -> ApiKeyRequirement {
-        ApiKeyRequirement::Required
-    }
-
-    fn options_schema(&self) -> serde_json::Value {
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                "region":   { "type": "string", "title": "Azure Region", "default": "global" },
-                "base_url": { "type": "string", "title": "Base URL (override)" }
-            }
-        })
-    }
-
-    async fn translate(
-        &self,
+    async fn translate_official(
         req: &TranslateRequest,
         cfg: &ServiceConfig,
-        api_key: Option<&str>,
+        key: &str,
         client: &Client,
     ) -> ServiceResult<TranslateResult> {
-        let key =
-            api_key.ok_or_else(|| ServiceError::MissingCredentials("bing.apiKey".to_string()))?;
         let started = Instant::now();
         let base_url = Self::resolve_base_url(cfg);
         let region = Self::resolve_region(cfg);
@@ -132,6 +84,50 @@ impl TranslationService for BingService {
             .send()
             .await?;
 
+        Self::parse_translate_response(response, started).await
+    }
+
+    async fn translate_web(
+        req: &TranslateRequest,
+        cfg: &ServiceConfig,
+        client: &Client,
+    ) -> ServiceResult<TranslateResult> {
+        let started = Instant::now();
+        let base_url = Self::resolve_web_base_url(cfg);
+        let web_config = fetch_web_config(client, &base_url).await?;
+
+        let mut form: Vec<(&str, String)> = vec![
+            ("text", req.text.clone()),
+            ("to", req.to.clone()),
+            ("token", web_config.token),
+            ("key", web_config.key),
+            ("tryFetchingGenderDebiasedTranslations", "true".to_string()),
+        ];
+        let from = req
+            .from
+            .as_deref()
+            .filter(|from| !from.eq_ignore_ascii_case("auto"))
+            .unwrap_or("auto-detect");
+        form.push(("fromLang", from.to_string()));
+
+        let url = format!(
+            "{base_url}/ttranslatev3?isVertical=1&IG={}&IID={}",
+            web_config.ig, web_config.iid
+        );
+        let response = client
+            .post(url)
+            .header("User-Agent", WEB_USER_AGENT)
+            .form(&form)
+            .send()
+            .await?;
+
+        Self::parse_translate_response(response, started).await
+    }
+
+    async fn parse_translate_response(
+        response: reqwest::Response,
+        started: Instant,
+    ) -> ServiceResult<TranslateResult> {
         let status = response.status();
         if !status.is_success() {
             let body_text = response.text().await.unwrap_or_default();
@@ -180,11 +176,140 @@ impl TranslationService for BingService {
             service_id: ServiceId::Bing,
             service_name: "Microsoft Translator".to_string(),
             text: translation.text,
+            audio_url: None,
             detected_source: detected,
             elapsed_ms,
+            dictionary: None,
             extra: None,
         })
     }
+}
+
+#[derive(Serialize)]
+struct BingBody<'a> {
+    #[serde(rename = "Text")]
+    text: &'a str,
+}
+
+#[derive(Deserialize)]
+struct BingResponse {
+    #[serde(default)]
+    translations: Vec<BingTranslation>,
+    #[serde(rename = "detectedLanguage", default)]
+    detected_language: Option<BingDetected>,
+}
+
+#[derive(Deserialize)]
+struct BingTranslation {
+    #[serde(rename = "text")]
+    text: String,
+    #[serde(default, rename = "to")]
+    #[allow(dead_code)]
+    to: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct BingDetected {
+    #[serde(default, rename = "language")]
+    language: Option<String>,
+    #[serde(default, rename = "score")]
+    #[allow(dead_code)]
+    score: Option<f64>,
+}
+
+#[async_trait]
+impl TranslationService for BingService {
+    fn id(&self) -> ServiceId {
+        ServiceId::Bing
+    }
+
+    fn display_name(&self) -> &'static str {
+        "Microsoft Translator"
+    }
+
+    fn api_key_requirement(&self) -> ApiKeyRequirement {
+        ApiKeyRequirement::Optional
+    }
+
+    fn options_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "region":   { "type": "string", "title": "Azure Region", "default": "global" },
+                "base_url": { "type": "string", "title": "Base URL (override)" },
+                "web_base_url": { "type": "string", "title": "Bing web base URL (override)" }
+            }
+        })
+    }
+
+    async fn translate(
+        &self,
+        req: &TranslateRequest,
+        cfg: &ServiceConfig,
+        api_key: Option<&str>,
+        client: &Client,
+    ) -> ServiceResult<TranslateResult> {
+        match api_key.map(str::trim).filter(|key| !key.is_empty()) {
+            Some(key) => Self::translate_official(req, cfg, key, client).await,
+            None => Self::translate_web(req, cfg, client).await,
+        }
+    }
+}
+
+struct BingWebConfig {
+    ig: String,
+    iid: String,
+    key: String,
+    token: String,
+}
+
+async fn fetch_web_config(client: &Client, base_url: &str) -> ServiceResult<BingWebConfig> {
+    let response = client
+        .get(format!("{base_url}/translator"))
+        .header("User-Agent", WEB_USER_AGENT)
+        .send()
+        .await?;
+    let status = response.status();
+    let html = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(ServiceError::Api {
+            code: "bing_web_config".to_string(),
+            message: html,
+        });
+    }
+
+    let ig = capture_between(&html, "IG:\"", "\"")
+        .ok_or_else(|| ServiceError::Parse("bing web IG missing".to_string()))?;
+    let iid = capture_between(&html, "data-iid=\"", "\"")
+        .ok_or_else(|| ServiceError::Parse("bing web IID missing".to_string()))?;
+    let params = capture_between(&html, "params_AbusePreventionHelper = [", "]")
+        .or_else(|| capture_between(&html, "params_AbusePreventionHelper=[", "]"))
+        .ok_or_else(|| ServiceError::Parse("bing web token params missing".to_string()))?;
+    let mut parts = params.split(',').map(|part| part.trim().trim_matches('"'));
+    let key = parts
+        .next()
+        .filter(|part| !part.is_empty())
+        .ok_or_else(|| ServiceError::Parse("bing web key missing".to_string()))?
+        .to_string();
+    let token = parts
+        .next()
+        .filter(|part| !part.is_empty())
+        .ok_or_else(|| ServiceError::Parse("bing web token missing".to_string()))?
+        .to_string();
+
+    Ok(BingWebConfig {
+        ig,
+        iid,
+        key,
+        token,
+    })
+}
+
+fn capture_between(text: &str, prefix: &str, suffix: &str) -> Option<String> {
+    let start = text.find(prefix)? + prefix.len();
+    let tail = &text[start..];
+    let end = tail.find(suffix)?;
+    Some(tail[..end].to_string())
 }
 
 // =============================================================================
@@ -212,7 +337,11 @@ mod tests {
             id: ServiceId::Bing,
             enabled: true,
             priority: 0,
-            options: json!({ "region": "eastus", "base_url": mock.uri() }),
+            options: json!({
+                "region": "eastus",
+                "base_url": mock.uri(),
+                "web_base_url": mock.uri(),
+            }),
         }
     }
 
@@ -283,25 +412,40 @@ mod tests {
         assert_eq!(res.detected_source.as_deref(), Some("fr"));
     }
 
-    // ---- S3: missing API key ----
+    // ---- S3: missing API key uses Bing web fallback ----
     #[tokio::test]
-    async fn translate_missing_api_key() {
-        let cfg = ServiceConfig {
-            id: ServiceId::Bing,
-            enabled: true,
-            priority: 0,
-            options: json!({}),
-        };
+    async fn translate_missing_api_key_uses_web_fallback() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/translator"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"IG:"abc123", data-iid="translator.5029" params_AbusePreventionHelper = [1693880687457,"token-value",3600000];"#,
+            ))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/ttranslatev3"))
+            .and(query_param("IG", "abc123"))
+            .and(query_param("IID", "translator.5029"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(ok_response("你好", Some("en"))))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let cfg = cfg_for(&server);
         let req = TranslateRequest {
-            text: "Hi".to_string(),
+            text: "Hello".to_string(),
             from: None,
             to: "zh-Hans".to_string(),
         };
-        let err = BingService
+        let result = BingService
             .translate(&req, &cfg, None, &Client::new())
             .await
-            .unwrap_err();
-        assert!(matches!(err, ServiceError::MissingCredentials(ref s) if s.contains("apiKey")));
+            .expect("web fallback should work without key");
+
+        assert_eq!(result.text, "你好");
+        assert_eq!(result.detected_source.as_deref(), Some("en"));
     }
 
     // ---- S4: 401 -> invalid_credentials ----

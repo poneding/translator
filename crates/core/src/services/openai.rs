@@ -267,8 +267,10 @@ impl TranslationService for OpenAIService {
             service_id: ServiceId::OpenAI,
             service_name: "OpenAI Compatible".to_string(),
             text,
+            audio_url: None,
             detected_source: None,
             elapsed_ms,
+            dictionary: None,
             extra: None,
         })
     }
