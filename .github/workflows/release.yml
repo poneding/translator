@@ -28,9 +28,79 @@ jobs:
           OUTPUT: RELEASE_NOTES.md
           GITHUB_REPO: ${{ github.repository }}
 
+  create-release:
+    name: create-release
+    needs: release-notes
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+    steps:
+      - name: Create or update draft release
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tag = context.ref.replace("refs/tags/", "");
+            const body = ${{ toJson(needs.release-notes.outputs.body) }};
+            const prerelease = tag.includes("-");
+            const name = `translator ${tag}`;
+
+            let release;
+            try {
+              const response = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              });
+              release = response.data;
+              const assets = await github.paginate(
+                github.rest.repos.listReleaseAssets,
+                {
+                  owner,
+                  repo,
+                  release_id: release.id,
+                  per_page: 100,
+                },
+              );
+              for (const asset of assets) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner,
+                  repo,
+                  asset_id: asset.id,
+                });
+              }
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                name,
+                body,
+                draft: true,
+                prerelease,
+              });
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+              const response = await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: tag,
+                target_commitish: context.sha,
+                name,
+                body,
+                draft: true,
+                prerelease,
+              });
+              release = response.data;
+            }
+
+            core.setOutput("release_id", String(release.id));
+
   build-tauri:
     name: build-tauri / ${{ matrix.name }}
-    needs: release-notes
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -114,14 +184,11 @@ jobs:
           projectPath: .
           args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
-          releaseName: "translator ${{ github.ref_name }}"
-          releaseBody: ${{ needs.release-notes.outputs.body }}
-          releaseDraft: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          releaseId: ${{ needs.create-release.outputs.release_id }}
 
   publish-release:
     name: publish-release
-    needs: build-tauri
+    needs: [create-release, build-tauri]
     runs-on: ubuntu-22.04
     steps:
       - name: Publish GitHub release
@@ -130,15 +197,10 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const tag = context.ref.replace("refs/tags/", "");
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner,
-              repo,
-              tag,
-            });
             await github.rest.repos.updateRelease({
               owner,
               repo,
-              release_id: release.id,
+              release_id: Number(${{ toJson(needs.create-release.outputs.release_id) }}),
               draft: false,
               prerelease: tag.includes("-"),
             });
