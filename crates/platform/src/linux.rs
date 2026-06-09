@@ -35,7 +35,6 @@ async fn get_or_connect() -> Result<zbus::Connection, SelectionError> {
         return Ok(c.clone());
     }
     let conn = zbus::connection::Builder::session()
-        .await
         .map_err(|e| SelectionError::Platform(format!("dbus connect: {e}")))?
         .build()
         .await

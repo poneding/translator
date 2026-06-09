@@ -10,6 +10,8 @@
     --fg-subtle: 96 100 108;
     --accent: 47 108 235;
     --border: 224 226 230;
+    --scrollbar-thumb: 190 196 206;
+    --scrollbar-thumb-hover: 150 158 172;
   }
   /* BH-11.1: explicit light/dark palettes driven by data-theme on <html>. */
   [data-theme="light"] {
@@ -19,6 +21,8 @@
     --fg-subtle: 96 100 108;
     --accent: 47 108 235;
     --border: 224 226 230;
+    --scrollbar-thumb: 190 196 206;
+    --scrollbar-thumb-hover: 150 158 172;
   }
   [data-theme="dark"] {
     --bg: 20 22 28;
@@ -27,6 +31,8 @@
     --fg-subtle: 156 162 172;
     --accent: 90 152 255;
     --border: 48 52 60;
+    --scrollbar-thumb: 64 70 82;
+    --scrollbar-thumb-hover: 84 92 108;
   }
   /* BH-11.2: when the user picks "System", we leave the data-theme
      attribute off and let the media query below resolve the palette.
@@ -39,7 +45,29 @@
       --fg-subtle: 156 162 172;
       --accent: 90 152 255;
       --border: 48 52 60;
+      --scrollbar-thumb: 64 70 82;
+      --scrollbar-thumb-hover: 84 92 108;
     }
+  }
+  * {
+    scrollbar-color: rgb(var(--scrollbar-thumb)) transparent;
+    scrollbar-width: thin;
+  }
+  *::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-clip: content-box;
+    background-color: rgb(var(--scrollbar-thumb));
+    border: 2px solid transparent;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--scrollbar-thumb-hover));
   }
   html,
   body,

@@ -1,5 +1,6 @@
 //! IPC commands exposed to the React frontend via `invoke()`.
 
+use std::process::Command;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -300,6 +301,55 @@ pub fn open_main_window<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct OpenExternalUrlArgs {
+    pub url: String,
+}
+
+/// Open a trusted external URL in the user's default browser.
+#[tauri::command]
+pub fn open_external_url(args: OpenExternalUrlArgs) -> Result<(), String> {
+    let url = args.url.trim();
+    if !is_allowed_external_url(url) {
+        return Err("only http(s) URLs can be opened externally".to_string());
+    }
+    open_url_with_system_browser(url)
+}
+
+fn is_allowed_external_url(url: &str) -> bool {
+    (url.starts_with("https://") || url.starts_with("http://"))
+        && !url.chars().any(char::is_control)
+        && !url.chars().any(char::is_whitespace)
+}
+
+fn open_url_with_system_browser(url: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("open");
+        command.arg(url);
+        command
+    };
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = Command::new("rundll32.exe");
+        command.args(["url.dll,FileProtocolHandler", url]);
+        command
+    };
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = {
+        let mut command = Command::new("xdg-open");
+        command.arg(url);
+        command
+    };
+
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("open external URL: {e}"))
+}
+
 /// Return the current config (sanitized: never includes API keys).
 #[tauri::command]
 pub fn get_config() -> Result<Config, String> {
@@ -353,7 +403,7 @@ pub fn get_app_info() -> AppInfoDto {
         version: env!("CARGO_PKG_VERSION").to_string(),
         commit: option_env!("GIT_COMMIT").unwrap_or("dev").to_string(),
         build_date: option_env!("BUILD_DATE").unwrap_or("dev").to_string(),
-        repo_url: "https://github.com/your-org/translator".to_string(),
+        repo_url: "https://github.com/poneding/translator".to_string(),
     }
 }
 

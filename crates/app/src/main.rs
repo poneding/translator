@@ -118,6 +118,7 @@ fn main() {
             commands::hide_popup,
             commands::open_main_window,
             commands::open_settings,
+            commands::open_external_url,
             commands::get_config,
             commands::save_config,
             commands::clear_history,

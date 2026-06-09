@@ -29,18 +29,37 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
   build-tauri:
-    name: build-tauri / ${{ matrix.platform }}
+    name: build-tauri / ${{ matrix.name }}
     needs: release-notes
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
+          - name: macos-universal
+            os: macos
+            platform: macos-latest
             args: --target universal-apple-darwin
-          - platform: ubuntu-22.04
+            rust_targets: aarch64-apple-darwin x86_64-apple-darwin
+          - name: linux-x64
+            os: linux
+            platform: ubuntu-22.04
             args: ""
-          - platform: windows-latest
+            rust_targets: ""
+          - name: linux-arm64
+            os: linux
+            platform: ubuntu-24.04-arm
+            args: --target aarch64-unknown-linux-gnu
+            rust_targets: aarch64-unknown-linux-gnu
+          - name: windows-x64
+            os: windows
+            platform: windows-latest
             args: ""
+            rust_targets: ""
+          - name: windows-arm64
+            os: windows
+            platform: windows-11-arm
+            args: --target aarch64-pc-windows-msvc --bundles nsis
+            rust_targets: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -48,15 +67,15 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install macOS universal targets
-        if: matrix.platform == 'macos-latest'
-        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Install Rust targets
+        if: matrix.rust_targets != ''
+        run: rustup target add ${{ matrix.rust_targets }}
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
       - name: Linux deps
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.os == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends --no-install-suggests \

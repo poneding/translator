@@ -431,7 +431,7 @@ function AudioButton({ url }: { url?: string | null }) {
 
   return (
     <button
-      className="icon-btn !h-6 !w-6"
+      className="icon-btn !h-7 !w-7"
       title={t("popup-play-audio", null, "Play audio")}
       aria-label={t("popup-play-audio", null, "Play audio")}
       onClick={() => {

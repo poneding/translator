@@ -197,12 +197,12 @@ export function App() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg text-fg">
-      <header className="flex items-center justify-between border-b border-border bg-bg-subtle px-5 py-3">
-        <div>
-          <h1 className="text-base font-semibold">
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-bg-subtle px-5 py-2.5">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h1 className="shrink-0 text-base font-semibold">
             {t("app-name", null, "Translator")}
           </h1>
-          <p className="text-xs text-fg-subtle">
+          <p className="min-w-0 truncate text-xs text-fg-subtle">
             {t(
               "main-subtitle",
               null,
@@ -212,15 +212,20 @@ export function App() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            className={"btn " + (historyOpen ? "btn-primary" : "")}
+            className={"icon-btn " + (historyOpen ? "btn-primary" : "")}
             onClick={() => setHistoryOpen((open) => !open)}
+            title={t("main-history", null, "History")}
+            aria-label={t("main-history", null, "History")}
           >
             <HistoryIcon size={15} aria-hidden="true" />
-            {t("main-history", null, "History")}
           </button>
-          <button className="btn" onClick={() => void api.openSettings()}>
+          <button
+            className="icon-btn"
+            onClick={() => void api.openSettings()}
+            title={t("main-open-settings", null, "Settings")}
+            aria-label={t("main-open-settings", null, "Settings")}
+          >
             <Settings size={15} aria-hidden="true" />
-            {t("main-open-settings", null, "Settings")}
           </button>
         </div>
       </header>
@@ -474,7 +479,7 @@ function ResultBody({
         <div className="flex shrink-0 items-center gap-1">
           <AudioButton url={result.audio_url ?? null} />
           <button
-            className="icon-btn"
+            className="icon-btn !h-7 !w-7"
             onClick={async () => {
               await api.copyToClipboard(result.text);
               onCopied();

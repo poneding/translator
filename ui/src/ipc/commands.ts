@@ -78,6 +78,10 @@ export function openSettings(): Promise<void> {
   return invoke<void>("open_settings");
 }
 
+export function openExternalUrl(url: string): Promise<void> {
+  return invoke<void>("open_external_url", { args: { url } });
+}
+
 export function getConfig(): Promise<Config> {
   return invoke<Config>("get_config");
 }

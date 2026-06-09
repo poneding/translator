@@ -29,6 +29,7 @@ use async_trait::async_trait;
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::string::{CFString, CFStringRef};
 use core_graphics::event::CGEvent;
+use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use core_graphics::geometry::CGPoint;
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -38,15 +39,13 @@ use std::time::Duration;
 use crate::{Rect, SelectionError, SelectionMonitor};
 
 // -----------------------------------------------------------------------------
-// Raw FFI — accessibility-sys 0.2 re-exports the AX API. We bind only the
-// functions we need; constants come from `accessibility_sys::AX::*`.
+// Raw FFI — accessibility-sys 0.2 re-exports the AX API at the crate root.
 // -----------------------------------------------------------------------------
 
-use accessibility_sys::AX::{
+use accessibility_sys::{
     kAXBoundsForRangeParameterizedAttribute, kAXFocusedUIElementAttribute,
-    kAXSelectedTextAttribute, kAXSelectedTextRangeAttribute, AXIsProcessTrustedWithOptions,
-    AXUIElementCopyAttributeValue, AXUIElementCopyParameterizedAttributeValue,
-    AXUIElementCreateSystemWide,
+    kAXSelectedTextAttribute, AXIsProcessTrustedWithOptions, AXUIElementCopyAttributeValue,
+    AXUIElementCopyParameterizedAttributeValue, AXUIElementCreateSystemWide, AXUIElementRef,
 };
 
 const AX_SUCCESS: i32 = 0;
@@ -67,37 +66,44 @@ impl Default for MacOSSelection {
     }
 }
 
-/// Convert a `CFTypeRef` that is actually a `CFString` into an owned `String`.
-/// Returns `None` if the pointer is null or the value is not a CFString.
+/// Convert an owned `CFTypeRef` that is actually a `CFString` into a `String`.
 unsafe fn cf_value_to_string(value: CFTypeRef) -> Option<String> {
     if value.is_null() {
         return None;
     }
     let cf_string = value as CFStringRef;
-    // `wrap_under_get_rule` does NOT take ownership (the caller still owns
-    // the CFString). The wrapper is dropped at end of scope and does not
-    // release the underlying CFString.
-    let s: CFString = CFString::wrap_under_get_rule(cf_string);
+    let s: CFString = CFString::wrap_under_create_rule(cf_string);
     Some(s.to_string())
 }
 
-/// Read a CF attribute and convert the result to an owned `String`.
-unsafe fn copy_string_attribute(
-    element: CFTypeRef,
+/// Copy a CF attribute value. A returned value follows the Create Rule and must
+/// be wrapped or released by the caller.
+unsafe fn copy_attribute_value(
+    element: AXUIElementRef,
     attribute: &str,
-) -> Result<Option<String>, SelectionError> {
+) -> Result<Option<CFTypeRef>, SelectionError> {
     let attr_cf = CFString::new(attribute);
     let mut value: CFTypeRef = std::ptr::null();
-    let err = AXUIElementCopyAttributeValue(
-        element as *const _,
-        attr_cf.as_concrete_TypeRef() as *const _,
-        &mut value as *mut _ as *mut *const _,
-    );
+    let err = AXUIElementCopyAttributeValue(element, attr_cf.as_concrete_TypeRef(), &mut value);
     if err != AX_SUCCESS {
         return Err(SelectionError::Platform(format!(
             "AXUIElementCopyAttributeValue({attribute}) returned {err}"
         )));
     }
+    if value.is_null() {
+        return Ok(None);
+    }
+    Ok(Some(value))
+}
+
+/// Read a CF attribute and convert the result to an owned `String`.
+unsafe fn copy_string_attribute(
+    element: AXUIElementRef,
+    attribute: &str,
+) -> Result<Option<String>, SelectionError> {
+    let Some(value) = copy_attribute_value(element, attribute)? else {
+        return Ok(None);
+    };
     Ok(cf_value_to_string(value))
 }
 
@@ -116,30 +122,24 @@ impl SelectionMonitor for MacOSSelection {
             }
 
             // 1. Focused element
-            let mut focused: CFTypeRef = std::ptr::null();
-            let err = AXUIElementCopyAttributeValue(
-                system as *const _,
-                kAXFocusedUIElementAttribute as *const _,
-                &mut focused as *mut _ as *mut *const _,
-            );
-            if err != AX_SUCCESS || focused.is_null() {
+            let focused_value = match copy_attribute_value(system, kAXFocusedUIElementAttribute) {
+                Ok(Some(value)) => value,
+                _ => {
+                    // No focused element — no selection. Treat as empty, not an error.
+                    return Ok(None);
+                }
+            };
+            let _focused_release = CFType::wrap_under_create_rule(focused_value);
+            let focused = focused_value as AXUIElementRef;
+            if focused.is_null() {
                 // No focused element — no selection. Treat as empty, not an error.
                 return Ok(None);
             }
 
             // 2. Selected text
-            let mut text_value: CFTypeRef = std::ptr::null();
-            let err = AXUIElementCopyAttributeValue(
-                focused as *const _,
-                kAXSelectedTextAttribute as *const _,
-                &mut text_value as *mut _ as *mut *const _,
-            );
-            if err != AX_SUCCESS {
-                return read_selection_by_clipboard();
-            }
-            match cf_value_to_string(text_value).filter(|text| !text.trim().is_empty()) {
-                Some(text) => Ok(Some(text)),
-                None => read_selection_by_clipboard(),
+            match copy_string_attribute(focused, kAXSelectedTextAttribute) {
+                Ok(Some(text)) if !text.trim().is_empty() => Ok(Some(text)),
+                _ => read_selection_by_clipboard(),
             }
         }
     }
@@ -155,30 +155,29 @@ impl SelectionMonitor for MacOSSelection {
                     "AXUIElementCreateSystemWide returned NULL".to_string(),
                 ));
             }
-            let mut focused: CFTypeRef = std::ptr::null();
-            let err = AXUIElementCopyAttributeValue(
-                system as *const _,
-                kAXFocusedUIElementAttribute as *const _,
-                &mut focused as *mut _ as *mut *const _,
-            );
-            if err != AX_SUCCESS || focused.is_null() {
-                return Ok(None);
-            }
+            let focused_value = match copy_attribute_value(system, kAXFocusedUIElementAttribute) {
+                Ok(Some(value)) => value,
+                _ => return Ok(None),
+            };
+            let _focused_release = CFType::wrap_under_create_rule(focused_value);
+            let focused = focused_value as AXUIElementRef;
             // Selected text range (CFRange wrapped in CFType — implementation-defined
             // encoding, but typically an AXValue). For v0.1.0 we only need the
             // bounds, not the range itself, so we ask the AX framework to
             // compute the bounds for the entire range. A future improvement is
             // to actually parse the CFRange to handle partial selections.
             let mut bounds_value: CFTypeRef = std::ptr::null();
+            let attr_cf = CFString::new(kAXBoundsForRangeParameterizedAttribute);
             let err = AXUIElementCopyParameterizedAttributeValue(
-                focused as *const _,
-                kAXBoundsForRangeParameterizedAttribute as *const _,
+                focused,
+                attr_cf.as_concrete_TypeRef(),
                 std::ptr::null(), // parameter: NULL → use full selected range
-                &mut bounds_value as *mut _ as *mut *const _,
+                &mut bounds_value,
             );
             if err != AX_SUCCESS || bounds_value.is_null() {
                 return Ok(None);
             }
+            let _bounds_release = CFType::wrap_under_create_rule(bounds_value);
             // Parse AXValue → CGRect. We don't have a safe wrapper for AXValue
             // in core-foundation, so we use a raw byte read. AXValue is a
             // CFType whose first 16 bytes after the CFRuntimeBase are a
@@ -198,7 +197,9 @@ impl SelectionMonitor for MacOSSelection {
         if !self.is_permission_granted() {
             return Err(SelectionError::PermissionDenied);
         }
-        let event = CGEvent::new(std::ptr::null_mut())
+        let source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+            .map_err(|_| SelectionError::Platform("CGEventSource::new failed".to_string()))?;
+        let event = CGEvent::new(source)
             .map_err(|_| SelectionError::Platform("CGEvent::new failed".to_string()))?;
         let point: CGPoint = event.location();
         Ok((point.x.round() as i32, point.y.round() as i32))
