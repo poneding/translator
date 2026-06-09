@@ -24,7 +24,7 @@ fn main() {
 
     tauri::Builder::default()
         .on_window_event(|window, event| {
-            if matches!(window.label(), "main" | "settings") {
+            if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
@@ -101,10 +101,7 @@ fn main() {
                 }
             }
 
-            // Hide the settings window on launch; it opens via the tray.
-            if let Some(win) = app.get_webview_window("settings") {
-                let _ = win.hide();
-            }
+            // Hide the popup on launch; main owns the integrated settings view.
             if let Some(win) = app.get_webview_window("popup") {
                 let _ = win.hide();
             }

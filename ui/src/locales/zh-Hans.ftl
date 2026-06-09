@@ -64,7 +64,9 @@ error-missing-credentials = 尚未配置 API key
 error-unknown = 未知错误
 
 # Settings - sidebar
+settings-back-main = 返回主界面
 settings-nav-general = 通用
+settings-nav-proxy = 代理
 settings-nav-services = 翻译服务
 settings-nav-shortcut = 快捷键
 settings-nav-appearance = 外观

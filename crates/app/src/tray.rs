@@ -10,7 +10,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    AppHandle, Emitter, Manager, Runtime,
 };
 
 const TRAY_ICON_BYTES: &[u8] = include_bytes!("../icons/icon.png");
@@ -36,12 +36,14 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.show();
                     let _ = win.set_focus();
+                    let _ = app.emit("translator://open-main", ());
                 }
             }
             "open_settings" => {
-                if let Some(win) = app.get_webview_window("settings") {
+                if let Some(win) = app.get_webview_window("main") {
                     let _ = win.show();
                     let _ = win.set_focus();
+                    let _ = app.emit("translator://open-settings", ());
                 }
             }
             "quit" => {
@@ -60,6 +62,7 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.show();
                     let _ = win.set_focus();
+                    let _ = app.emit("translator://open-main", ());
                 }
             }
         })

@@ -70,20 +70,22 @@ export function GeneralSection() {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <LanguagePreferenceField
-          customAriaLabel={t("settings-general-first-language-custom-aria")}
-          label={t("settings-general-first-language")}
-          onChange={(value) => saveLanguage(0, value)}
-          t={t}
-          value={firstLanguage}
-        />
-        <LanguagePreferenceField
-          customAriaLabel={t("settings-general-second-language-custom-aria")}
-          label={t("settings-general-second-language")}
-          onChange={(value) => saveLanguage(1, value)}
-          t={t}
-          value={secondLanguage}
-        />
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+          <LanguagePreferenceField
+            customAriaLabel={t("settings-general-first-language-custom-aria")}
+            label={t("settings-general-first-language")}
+            onChange={(value) => saveLanguage(0, value)}
+            t={t}
+            value={firstLanguage}
+          />
+          <LanguagePreferenceField
+            customAriaLabel={t("settings-general-second-language-custom-aria")}
+            label={t("settings-general-second-language")}
+            onChange={(value) => saveLanguage(1, value)}
+            t={t}
+            value={secondLanguage}
+          />
+        </div>
         <p className="mt-1 text-xs text-fg-subtle">
           {t("settings-general-preferred-languages-hint")}
         </p>
@@ -123,45 +125,6 @@ export function GeneralSection() {
           </span>
         </label>
       </div>
-      <div className="space-y-2 border-t border-border pt-4">
-        <label className="flex cursor-pointer items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 shrink-0 accent-[rgb(var(--accent))]"
-            checked={config.general.proxy.enabled}
-            onChange={(e) =>
-              void save({
-                ...config,
-                general: {
-                  ...config.general,
-                  proxy: { ...config.general.proxy, enabled: e.target.checked },
-                },
-              })
-            }
-          />
-          <span className="min-w-0 leading-5">
-            {t("settings-general-use-proxy")}
-          </span>
-        </label>
-        <div>
-          <label className="label">{t("settings-general-proxy-url")}</label>
-          <input
-            className="input"
-            aria-label={t("settings-general-proxy-url")}
-            placeholder="http://127.0.0.1:7890"
-            value={config.general.proxy.url}
-            onChange={(e) =>
-              void save({
-                ...config,
-                general: {
-                  ...config.general,
-                  proxy: { ...config.general.proxy, url: e.target.value },
-                },
-              })
-            }
-          />
-        </div>
-      </div>
     </div>
   );
 }
@@ -192,7 +155,7 @@ function LanguagePreferenceField({
   ];
 
   return (
-    <div>
+    <div className="min-w-0">
       <Combobox
         label={label}
         options={options}

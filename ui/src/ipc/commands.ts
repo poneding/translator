@@ -141,6 +141,16 @@ export function onHotkeyPressed(handler: () => void): Promise<UnlistenFn> {
   return listen("translator://hotkey-pressed", () => handler());
 }
 
+export function onOpenSettingsRequested(
+  handler: () => void,
+): Promise<UnlistenFn> {
+  return listen("translator://open-settings", () => handler());
+}
+
+export function onOpenMainRequested(handler: () => void): Promise<UnlistenFn> {
+  return listen("translator://open-main", () => handler());
+}
+
 export function onTranslationStarted(
   handler: (payload: TranslationStartedDto) => void,
 ): Promise<UnlistenFn> {

@@ -6,9 +6,9 @@
 
 | Platform | Where to get it |
 | --- | --- |
-| macOS | `brew install --cask translator` (when published) or download the `.dmg` from [Releases](https://github.com/your-org/translator/releases) |
-| Windows | Download the `.msi` from [Releases](https://github.com/your-org/translator/releases) |
-| Linux | Download the `.AppImage` or `.deb` from [Releases](https://github.com/your-org/translator/releases) |
+| macOS | `brew install --cask translator` (when published) or download the `.dmg` from [Releases]( https://github.com/poneding/translator/releases) |
+| Windows | Download the `.msi` from [Releases]( https://github.com/poneding/translator/releases) |
+| Linux | Download the `.AppImage` or `.deb` from [Releases]( https://github.com/poneding/translator/releases) |
 
 ## First run
 

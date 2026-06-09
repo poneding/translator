@@ -276,17 +276,18 @@ pub fn hide_popup<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
-// Settings window + config
+// Settings view + config
 // ---------------------------------------------------------------------------
 
-/// Open the settings window.
+/// Open the main window and switch it to the settings view.
 #[tauri::command]
 pub fn open_settings<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
     let win: WebviewWindow<R> = app
-        .get_webview_window("settings")
-        .ok_or_else(|| "settings window not found".to_string())?;
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
+    let _ = app.emit("translator://open-settings", ());
     Ok(())
 }
 
@@ -298,6 +299,7 @@ pub fn open_main_window<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
         .ok_or_else(|| "main window not found".to_string())?;
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
+    let _ = app.emit("translator://open-main", ());
     Ok(())
 }
 

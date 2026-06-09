@@ -64,7 +64,9 @@ error-missing-credentials = API key not configured
 error-unknown = Unknown error
 
 # Settings - sidebar
+settings-back-main = Back to main
 settings-nav-general = General
+settings-nav-proxy = Proxy
 settings-nav-services = Services
 settings-nav-shortcut = Hotkey
 settings-nav-appearance = Appearance

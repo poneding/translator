@@ -14,6 +14,7 @@ import {
 import { useConfigStore } from "./stores/config";
 import { useT } from "./i18n";
 import { useTheme } from "./hooks/useTheme";
+import { SettingsView } from "./SettingsApp";
 import * as api from "./ipc/commands";
 import { ServiceLogo } from "./services/ServiceLogo";
 import { Combobox } from "./components/Combobox";
@@ -27,6 +28,7 @@ import type {
 } from "./types/bindings";
 
 type HostPlatform = Platform | "unknown";
+type AppView = "main" | "settings";
 
 const LANGS: Array<{ code: string; labelKey: string; fallback: string }> = [
   { code: "auto", labelKey: "lang-auto", fallback: "Auto" },
@@ -55,6 +57,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [activeView, setActiveView] = useState<AppView>("main");
   const requestIdRef = useRef<string | null>(null);
 
   useTheme(
@@ -85,6 +88,24 @@ export function App() {
       void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [setConfig]);
+
+  useEffect(() => {
+    const unlistenSettingsPromise = api.onOpenSettingsRequested(() => {
+      setHistoryOpen(false);
+      setActiveView("settings");
+    });
+    const unlistenMainPromise = api.onOpenMainRequested(() => {
+      setHistoryOpen(false);
+      setActiveView("main");
+    });
+    return () => {
+      void Promise.all([unlistenSettingsPromise, unlistenMainPromise]).then(
+        (unlisteners) => {
+          for (const unlisten of unlisteners) unlisten();
+        },
+      );
+    };
+  }, []);
 
   useEffect(() => {
     const unlistenStarted = api.onTranslationStarted((payload) => {
@@ -205,17 +226,26 @@ export function App() {
     <div className="flex h-full min-h-0 flex-col bg-bg text-fg">
       <AppTitleBar
         historyOpen={historyOpen}
+        showAppActions={activeView === "main"}
         onToggleHistory={() => setHistoryOpen((open) => !open)}
-        onOpenSettings={() => void api.openSettings()}
+        onOpenSettings={() => {
+          setHistoryOpen(false);
+          setActiveView("settings");
+        }}
       />
 
-      <main
-        className={
-          "grid min-h-0 flex-1 gap-4 p-4 " +
-          (historyOpen ? "grid-cols-[minmax(0,1fr)_280px]" : "grid-cols-1")
-        }
-      >
-        <section className="flex min-h-0 flex-col gap-3">
+      {activeView === "settings" ? (
+        <div className="min-h-0 flex-1">
+          <SettingsView onBack={() => setActiveView("main")} />
+        </div>
+      ) : (
+        <main
+          className={
+            "grid min-h-0 flex-1 gap-4 p-4 " +
+            (historyOpen ? "grid-cols-[minmax(0,1fr)_280px]" : "grid-cols-1")
+          }
+        >
+          <section className="flex min-h-0 flex-col gap-3">
           <div className="flex items-center gap-2">
             <Combobox
               className="flex-1"
@@ -301,49 +331,52 @@ export function App() {
           )}
 
           <ResultsPanel outcomes={outcomes} busy={busy} />
-        </section>
+          </section>
 
-        {historyOpen && (
-          <HistoryPanel
-            history={config.history}
-            onClear={async () => {
-              await api.clearHistory();
-              await load();
-            }}
-            onPick={(item) => {
-              setText(item.source_text);
-              setFrom(item.from || "auto");
-              setTo(item.to);
-              setOutcomes([
-                {
-                  service_id:
-                    item.service_id as ServiceOutcomeDto["service_id"],
-                  service_name: item.service_name,
-                  result: {
+          {historyOpen && (
+            <HistoryPanel
+              history={config.history}
+              onClear={async () => {
+                await api.clearHistory();
+                await load();
+              }}
+              onPick={(item) => {
+                setText(item.source_text);
+                setFrom(item.from || "auto");
+                setTo(item.to);
+                setOutcomes([
+                  {
                     service_id:
                       item.service_id as ServiceOutcomeDto["service_id"],
                     service_name: item.service_name,
-                    text: item.translated_text,
-                    detected_source: item.from === "auto" ? null : item.from,
-                    elapsed_ms: 0,
+                    result: {
+                      service_id:
+                        item.service_id as ServiceOutcomeDto["service_id"],
+                      service_name: item.service_name,
+                      text: item.translated_text,
+                      detected_source: item.from === "auto" ? null : item.from,
+                      elapsed_ms: 0,
+                    },
+                    error: null,
                   },
-                  error: null,
-                },
-              ]);
-            }}
-          />
-        )}
-      </main>
+                ]);
+              }}
+            />
+          )}
+        </main>
+      )}
     </div>
   );
 }
 
 function AppTitleBar({
   historyOpen,
+  showAppActions,
   onToggleHistory,
   onOpenSettings,
 }: {
   historyOpen: boolean;
+  showAppActions: boolean;
   onToggleHistory: () => void;
   onOpenSettings: () => void;
 }) {
@@ -354,7 +387,6 @@ function AppTitleBar({
   return (
     <header
       className={"app-titlebar " + (isMac ? "app-titlebar-mac" : "")}
-      data-tauri-drag-region
       onDoubleClick={(event) => {
         const target = event.target as HTMLElement;
         if (target.closest("button")) return;
@@ -372,24 +404,30 @@ function AppTitleBar({
           )}
         </p>
       </div>
-      <div className="titlebar-actions">
-        <button
-          className={"icon-btn !h-7 !w-7 " + (historyOpen ? "btn-primary" : "")}
-          onClick={onToggleHistory}
-          title={t("main-history", null, "History")}
-          aria-label={t("main-history", null, "History")}
-        >
-          <HistoryIcon size={15} aria-hidden="true" />
-        </button>
-        <button
-          className="icon-btn !h-7 !w-7"
-          onClick={onOpenSettings}
-          title={t("main-open-settings", null, "Settings")}
-          aria-label={t("main-open-settings", null, "Settings")}
-        >
-          <Settings size={15} aria-hidden="true" />
-        </button>
-      </div>
+      {showAppActions ? (
+        <div className="titlebar-actions">
+          <button
+            className={
+              "titlebar-icon-btn " + (historyOpen ? "titlebar-icon-active" : "")
+            }
+            onClick={onToggleHistory}
+            title={t("main-history", null, "History")}
+            aria-label={t("main-history", null, "History")}
+          >
+            <HistoryIcon size={15} aria-hidden="true" />
+          </button>
+          <button
+            className="titlebar-icon-btn"
+            onClick={onOpenSettings}
+            title={t("main-open-settings", null, "Settings")}
+            aria-label={t("main-open-settings", null, "Settings")}
+          >
+            <Settings size={15} aria-hidden="true" />
+          </button>
+        </div>
+      ) : (
+        <div className="titlebar-actions" />
+      )}
       {!isMac && <WindowsWindowControls />}
     </header>
   );
