@@ -3,10 +3,13 @@ import {
   Check,
   Copy,
   History as HistoryIcon,
+  Maximize2,
+  Minus,
   Settings,
   Square,
   Trash2,
   Volume2,
+  X,
 } from "lucide-react";
 import { useConfigStore } from "./stores/config";
 import { useT } from "./i18n";
@@ -15,12 +18,15 @@ import * as api from "./ipc/commands";
 import { ServiceLogo } from "./services/ServiceLogo";
 import { Combobox } from "./components/Combobox";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { platform as getPlatform, type Platform } from "@tauri-apps/plugin-os";
 import type {
   DictionaryResult,
   HistoryItem,
   ServiceOutcomeDto,
   TranslateResult,
 } from "./types/bindings";
+
+type HostPlatform = Platform | "unknown";
 
 const LANGS: Array<{ code: string; labelKey: string; fallback: string }> = [
   { code: "auto", labelKey: "lang-auto", fallback: "Auto" },
@@ -197,38 +203,11 @@ export function App() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg text-fg">
-      <header className="flex items-center justify-between gap-3 border-b border-border bg-bg-subtle px-5 py-2.5">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <h1 className="shrink-0 text-base font-semibold">
-            {t("app-name", null, "Translator")}
-          </h1>
-          <p className="min-w-0 truncate text-xs text-fg-subtle">
-            {t(
-              "main-subtitle",
-              null,
-              "Fast text, clipboard, and selection translation",
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className={"icon-btn " + (historyOpen ? "btn-primary" : "")}
-            onClick={() => setHistoryOpen((open) => !open)}
-            title={t("main-history", null, "History")}
-            aria-label={t("main-history", null, "History")}
-          >
-            <HistoryIcon size={15} aria-hidden="true" />
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => void api.openSettings()}
-            title={t("main-open-settings", null, "Settings")}
-            aria-label={t("main-open-settings", null, "Settings")}
-          >
-            <Settings size={15} aria-hidden="true" />
-          </button>
-        </div>
-      </header>
+      <AppTitleBar
+        historyOpen={historyOpen}
+        onToggleHistory={() => setHistoryOpen((open) => !open)}
+        onOpenSettings={() => void api.openSettings()}
+      />
 
       <main
         className={
@@ -357,6 +336,149 @@ export function App() {
       </main>
     </div>
   );
+}
+
+function AppTitleBar({
+  historyOpen,
+  onToggleHistory,
+  onOpenSettings,
+}: {
+  historyOpen: boolean;
+  onToggleHistory: () => void;
+  onOpenSettings: () => void;
+}) {
+  const t = useT();
+  const [hostPlatform] = useState<HostPlatform>(() => detectHostPlatform());
+  const isMac = hostPlatform === "macos";
+
+  return (
+    <header
+      className={"app-titlebar " + (isMac ? "app-titlebar-mac" : "")}
+      data-tauri-drag-region
+      onDoubleClick={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("button")) return;
+        void runWindowAction((win) => win.toggleMaximize());
+      }}
+    >
+      {isMac && <MacWindowControls />}
+      <div className="titlebar-title" data-tauri-drag-region>
+        <h1 data-tauri-drag-region>{t("app-name", null, "Translator")}</h1>
+        <p data-tauri-drag-region>
+          {t(
+            "main-subtitle",
+            null,
+            "Fast text, clipboard, and selection translation",
+          )}
+        </p>
+      </div>
+      <div className="titlebar-actions">
+        <button
+          className={"icon-btn !h-7 !w-7 " + (historyOpen ? "btn-primary" : "")}
+          onClick={onToggleHistory}
+          title={t("main-history", null, "History")}
+          aria-label={t("main-history", null, "History")}
+        >
+          <HistoryIcon size={15} aria-hidden="true" />
+        </button>
+        <button
+          className="icon-btn !h-7 !w-7"
+          onClick={onOpenSettings}
+          title={t("main-open-settings", null, "Settings")}
+          aria-label={t("main-open-settings", null, "Settings")}
+        >
+          <Settings size={15} aria-hidden="true" />
+        </button>
+      </div>
+      {!isMac && <WindowsWindowControls />}
+    </header>
+  );
+}
+
+function MacWindowControls() {
+  const t = useT();
+  return (
+    <div className="mac-window-controls">
+      <button
+        className="mac-window-control mac-window-close"
+        onClick={() => void runWindowAction((win) => win.close())}
+        title={t("popup-close", null, "Close")}
+        aria-label={t("popup-close", null, "Close")}
+      >
+        <X size={8} aria-hidden="true" />
+      </button>
+      <button
+        className="mac-window-control mac-window-minimize"
+        onClick={() => void runWindowAction((win) => win.minimize())}
+        title="Minimize"
+        aria-label="Minimize"
+      >
+        <Minus size={8} aria-hidden="true" />
+      </button>
+      <button
+        className="mac-window-control mac-window-maximize"
+        onClick={() => void runWindowAction((win) => win.toggleMaximize())}
+        title="Maximize"
+        aria-label="Maximize"
+      >
+        <Maximize2 size={7} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+function WindowsWindowControls() {
+  const t = useT();
+  return (
+    <div className="windows-window-controls">
+      <button
+        className="window-control"
+        onClick={() => void runWindowAction((win) => win.minimize())}
+        title="Minimize"
+        aria-label="Minimize"
+      >
+        <Minus size={14} aria-hidden="true" />
+      </button>
+      <button
+        className="window-control"
+        onClick={() => void runWindowAction((win) => win.toggleMaximize())}
+        title="Maximize"
+        aria-label="Maximize"
+      >
+        <Maximize2 size={13} aria-hidden="true" />
+      </button>
+      <button
+        className="window-control window-control-close"
+        onClick={() => void runWindowAction((win) => win.close())}
+        title={t("popup-close", null, "Close")}
+        aria-label={t("popup-close", null, "Close")}
+      >
+        <X size={15} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+function detectHostPlatform(): HostPlatform {
+  try {
+    return getPlatform();
+  } catch {
+    const platform = navigator.platform.toLowerCase();
+    if (platform.includes("mac")) return "macos";
+    if (platform.includes("win")) return "windows";
+    if (platform.includes("linux")) return "linux";
+    return "unknown";
+  }
+}
+
+async function runWindowAction(
+  action: (win: ReturnType<typeof getCurrentWindow>) => Promise<void>,
+) {
+  try {
+    await action(getCurrentWindow());
+  } catch {
+    // Window controls are inert in a plain browser preview.
+  }
 }
 
 function upsertOutcome(

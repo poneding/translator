@@ -81,6 +81,59 @@
 }
 
 @layer components {
+  .app-titlebar {
+    @apply grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center border-b border-border
+           bg-bg-subtle text-fg select-none;
+  }
+  .app-titlebar-mac {
+    @apply grid-cols-[72px_minmax(0,1fr)_auto];
+  }
+  .titlebar-title {
+    @apply flex min-w-0 items-baseline gap-2 px-4;
+  }
+  .app-titlebar-mac .titlebar-title {
+    @apply px-2;
+  }
+  .titlebar-title h1 {
+    @apply shrink-0 text-sm font-semibold leading-none;
+  }
+  .titlebar-title p {
+    @apply min-w-0 truncate text-xs leading-none text-fg-subtle;
+  }
+  .titlebar-actions {
+    @apply flex items-center gap-1.5 px-2;
+  }
+  .windows-window-controls {
+    @apply flex h-full items-stretch;
+  }
+  .window-control {
+    @apply inline-flex h-10 w-11 items-center justify-center text-fg-subtle
+           transition hover:bg-border hover:text-fg focus:outline-none focus:ring-2
+           focus:ring-inset focus:ring-accent/50;
+  }
+  .window-control-close {
+    @apply hover:bg-red-500 hover:text-white;
+  }
+  .mac-window-controls {
+    @apply flex h-10 items-center gap-2 px-4;
+  }
+  .mac-window-control {
+    @apply inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border
+           text-black/0 transition focus:outline-none focus:ring-2 focus:ring-accent/50;
+  }
+  .mac-window-controls:hover .mac-window-control,
+  .mac-window-control:focus-visible {
+    @apply text-black/60;
+  }
+  .mac-window-close {
+    @apply border-red-500/70 bg-red-500;
+  }
+  .mac-window-minimize {
+    @apply border-yellow-500/70 bg-yellow-400;
+  }
+  .mac-window-maximize {
+    @apply border-green-500/70 bg-green-500;
+  }
   .btn {
     @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border
            bg-bg-subtle px-3 py-1.5 text-sm font-medium leading-none text-fg
