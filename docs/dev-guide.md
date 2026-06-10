@@ -98,9 +98,11 @@ The app uses the official `tauri-plugin-updater`.
 - Generate a Tauri updater key pair with `cargo tauri signer generate`.
 - Commit only the public key in `crates/app/tauri.conf.json`
   `plugins.updater.pubkey`; never commit the private key.
-- Store the private key in GitHub Actions as `TAURI_SIGNING_PRIVATE_KEY` and
+- Store the private key file in GitHub Actions as
+  `TAURI_SIGNING_PRIVATE_KEY_B64`, encoded as single-line base64, and store
   the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
-- Enable `bundle.createUpdaterArtifacts` only after those secrets are present.
+- `release.yml` decodes the base64 secret into a temporary key file and passes
+  that path to `TAURI_SIGNING_PRIVATE_KEY`.
 - Stable checks use
   `https://github.com/poneding/translator/releases/latest/download/latest.json`.
 - Beta checks use the `beta` release/tag manifest URL configured in

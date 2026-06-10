@@ -105,6 +105,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: macos-universal
+            os: macos
+            platform: macos-latest
+            args: --target universal-apple-darwin
+            rust_targets: aarch64-apple-darwin x86_64-apple-darwin
           - name: linux-x64
             os: linux
             platform: ubuntu-22.04
@@ -171,10 +176,25 @@ jobs:
         working-directory: ui
         run: npm run build
 
+      - name: Prepare updater signing key
+        id: updater-key
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_B64) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_B64 is required to create updater artifacts"
+          }
+          $keyPath = Join-Path $env:RUNNER_TEMP "tauri-updater.key"
+          [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($env:TAURI_SIGNING_PRIVATE_KEY_B64))
+          "path=$keyPath" >> $env:GITHUB_OUTPUT
+
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ steps.updater-key.outputs.path }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: .
           args: ${{ matrix.args }}
