@@ -335,7 +335,7 @@ function ServiceRow({
               )}
               checked={enabled}
               onChange={(e) => onToggle(e.target.checked)}
-              className="h-4 w-4 accent-[rgb(var(--accent))]"
+              className="checkbox !mt-0"
             />
             {t("settings-services-enabled")}
           </label>

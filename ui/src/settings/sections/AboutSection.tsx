@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import * as api from "../../ipc/commands";
 import { useT } from "../../i18n";
+import * as api from "../../ipc/commands";
 
 export function AboutSection() {
   // BH-12.1: show app version, build commit, build date, and the repo link.
@@ -17,9 +17,7 @@ export function AboutSection() {
         <strong className="text-fg">{t("app-name", null, "Translator")}</strong>{" "}
         {t("settings-about-version-line", { version: info?.version ?? "..." })}
       </p>
-      <p>
-        {t("settings-about-built-with")}
-      </p>
+      <p>{t("settings-about-built-with")}</p>
       <p>
         {t("settings-about-commit")}{" "}
         <code className="text-fg">{info?.commit ?? "..."}</code>

@@ -98,10 +98,10 @@ settings-general-duplicate-language = The two preferred languages must be differ
 settings-general-auto-copy = Auto-copy first successful result
 settings-general-clipboard-hotkey = Use clipboard text when hotkey opens with no selection
 settings-general-launch-at-startup = Launch at startup
-settings-general-window-position = Default open position
-settings-general-window-position-right = Top right
-settings-general-window-position-center = Center
-settings-general-window-position-mouse = Follow mouse
+settings-general-window-position = 開啟視窗時預設顯示位置
+settings-general-window-position-right = 螢幕右上角
+settings-general-window-position-center = 置中顯示
+settings-general-window-position-mouse = 跟隨滑鼠
 settings-general-use-proxy = Use HTTP proxy for translation requests
 settings-general-proxy-url = Proxy URL
 

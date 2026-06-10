@@ -39,6 +39,12 @@ main-results-empty = 翻译结果会显示在这里。
 main-history = 历史记录
 main-clear-history = 清空
 main-history-empty = 成功的翻译会保存在这里。
+main-pin-window = 固定窗口
+main-unpin-window = 取消固定窗口
+main-refresh = 刷新
+main-refresh-all = 重新翻译
+main-refresh-service = 刷新此服务
+main-error-clipboard = 无法读取剪贴板：{ $msg }
 
 # Popup
 popup-title = 翻译
@@ -70,6 +76,7 @@ settings-nav-proxy = 代理
 settings-nav-services = 翻译服务
 settings-nav-shortcut = 快捷键
 settings-nav-appearance = 外观
+settings-nav-update = 更新
 settings-nav-about = 关于
 
 # Settings - general
@@ -89,7 +96,12 @@ settings-general-invalid-bcp47 = 无效的 BCP-47 代码，例如 zh-Hans 或 en
 settings-general-invalid-source = 使用 auto 或 BCP-47 代码，例如 en 或 zh-Hans。
 settings-general-duplicate-language = 两个偏好语言必须不同。
 settings-general-auto-copy = 自动复制第一个成功结果
+settings-general-clipboard-hotkey = 快捷键打开且无选中文本时使用剪贴板文本
 settings-general-launch-at-startup = 登录时启动
+settings-general-window-position = 打开窗口时默认显示位置
+settings-general-window-position-right = 屏幕右上角
+settings-general-window-position-center = 居中显示
+settings-general-window-position-mouse = 跟随鼠标
 settings-general-use-proxy = 翻译请求使用 HTTP 代理
 settings-general-proxy-url = 代理 URL
 
@@ -161,6 +173,24 @@ settings-appearance-theme-system = 跟随系统
 settings-appearance-theme-light = 浅色
 settings-appearance-theme-dark = 深色
 settings-appearance-theme-aria = 主题：{ $theme }
+settings-appearance-language = 应用语言
+settings-appearance-language-system = 跟随系统
+
+# Settings - update
+settings-update-check-startup = 启动时检查更新
+settings-update-allow-beta = 允许 Beta 版本
+settings-update-check = 检查更新
+settings-update-install = 下载并安装
+settings-update-status-idle = 尚未检查更新。
+settings-update-status-checking = 正在检查更新...
+settings-update-status-up-to-date = 当前已是最新版本。
+settings-update-status-available = 发现可用更新。
+settings-update-status-installing = 正在下载并安装更新...
+settings-update-status-installing-progress = 正在下载更新：{ $downloaded } KB / { $total } KB
+settings-update-status-installed = 更新已安装。请重启应用完成更新。
+settings-update-status-failed = 更新检查失败：{ $msg }
+settings-update-version = 版本 { $version }（{ $channel }）
+settings-update-date = 发布时间：{ $date }
 
 # Settings - about
 settings-about-built-with = 由 Rust、Tauri 2 和 React 构建。

@@ -2,18 +2,18 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for the main app windows.",
-  "windows": ["main", "popup"],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-close",
     "core:window:allow-minimize",
-    "core:window:allow-toggle-maximize",
     "core:window:allow-start-dragging",
     "core:window:allow-set-position",
     "core:window:allow-set-focus",
     "core:window:allow-set-size",
+    "core:window:allow-set-always-on-top",
     "core:webview:allow-create-webview-window",
     "core:event:allow-listen",
     "core:event:allow-emit",
@@ -43,6 +43,8 @@
     "dialog:allow-open",
     "dialog:allow-message",
 
-    "autostart:default"
+    "autostart:default",
+
+    "updater:default"
   ]
 }

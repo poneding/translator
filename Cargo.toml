@@ -7,7 +7,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.81"
 license = "GPL-3.0-only"
@@ -50,6 +50,8 @@ tauri-plugin-fs = "2"
 tauri-plugin-os = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"
+url = "2"
 
 # tauri build
 tauri-build = { version = "2", features = [] }

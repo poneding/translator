@@ -3,6 +3,20 @@
 // sync with the Rust side.
 
 export type ServiceId = "youdao" | "deepl" | "google" | "bing" | "openai";
+export type AppLanguageCode =
+  | "system"
+  | "en"
+  | "zh-Hans"
+  | "zh-Hant"
+  | "ja"
+  | "ko"
+  | "fr"
+  | "de"
+  | "es"
+  | "ru"
+  | "pt"
+  | "it"
+  | "ar";
 
 export interface ServiceConfig {
   id: ServiceId;
@@ -16,7 +30,9 @@ export interface GeneralConfig {
   default_from: string;
   preferred_languages: string[];
   theme: "light" | "dark" | "system";
+  app_language: AppLanguageCode;
   auto_copy: boolean;
+  auto_translate_clipboard_on_hotkey: boolean;
   launch_at_startup: boolean;
   proxy: ProxyConfig;
 }
@@ -24,6 +40,16 @@ export interface GeneralConfig {
 export interface ProxyConfig {
   enabled: boolean;
   url: string;
+}
+
+export interface WindowConfig {
+  always_on_top: boolean;
+  display_position: "right" | "center" | "mouse" | string;
+}
+
+export interface UpdateConfig {
+  check_on_startup: boolean;
+  allow_beta: boolean;
 }
 
 export interface HistoryItem {
@@ -43,17 +69,23 @@ export interface Config {
   shortcut: string;
   services: Record<string, ServiceConfig>;
   history: HistoryItem[];
+  window: WindowConfig;
+  updates: UpdateConfig;
   hotkey_registration_failed?: boolean;
 }
 
 export interface TranslateResult {
   service_id: ServiceId;
   service_name: string;
+  from: string | null;
+  to: string;
   text: string;
   audio_url?: string | null;
   detected_source: string | null;
   elapsed_ms: number;
   dictionary?: DictionaryResult | null;
+  source_dictionary?: DictionaryResult | null;
+  target_dictionary?: DictionaryResult | null;
   extra?: Record<string, unknown>;
 }
 
@@ -112,4 +144,36 @@ export interface TranslationOutcomeDto {
 
 export interface TranslationFinishedDto {
   request_id: string;
+}
+
+export interface HotkeySourceDto {
+  text: string | null;
+  error: string | null;
+  source: "selection" | "clipboard" | "none" | string;
+}
+
+export interface UpdateInfoDto {
+  available: boolean;
+  version: string | null;
+  current_version: string;
+  channel: string;
+  date: string | null;
+  body: string | null;
+}
+
+export type UpdateStatus =
+  | "idle"
+  | "checking"
+  | "up-to-date"
+  | "available"
+  | "installing"
+  | "installed"
+  | "failed";
+
+export interface UpdateStatusDto {
+  status: UpdateStatus | string;
+  update: UpdateInfoDto | null;
+  error: string | null;
+  downloaded: number | null;
+  total: number | null;
 }

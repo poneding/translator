@@ -2,27 +2,16 @@ import { useState } from "react";
 import { useConfigStore } from "../../stores/config";
 import { useT } from "../../i18n";
 import { Combobox } from "../../components/Combobox";
-
-const LANGUAGE_OPTIONS: Array<{ code: string; labelKey: string; fallback: string }> = [
-  { code: "en",      labelKey: "lang-en", fallback: "English" },
-  { code: "zh-Hans", labelKey: "lang-zh-hans", fallback: "Simplified Chinese" },
-  { code: "zh-Hant", labelKey: "lang-zh-hant", fallback: "Traditional Chinese" },
-  { code: "ja",      labelKey: "lang-ja", fallback: "Japanese" },
-  { code: "ko",      labelKey: "lang-ko", fallback: "Korean" },
-  { code: "fr",      labelKey: "lang-fr", fallback: "French" },
-  { code: "de",      labelKey: "lang-de", fallback: "German" },
-  { code: "es",      labelKey: "lang-es", fallback: "Spanish" },
-  { code: "ru",      labelKey: "lang-ru", fallback: "Russian" },
-  { code: "pt",      labelKey: "lang-pt", fallback: "Portuguese" },
-  { code: "it",      labelKey: "lang-it", fallback: "Italian" },
-  { code: "ar",      labelKey: "lang-ar", fallback: "Arabic" },
-];
+import { COMMON_LANGUAGES, commonLanguageOptions } from "../../i18n/languages";
 
 // BH-9.3: BCP-47 primary-language-subtag format. Accepts any of the
 // SPEC options above plus the 2-3 letter ISO codes and (optional) script
 // subtags. Strict-but-permissive: primary tag is mandatory, script is
 // optional and limited to a-z letters.
-const BCP47_RE = /^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))*$/;
+const BCP47_RE =
+  /^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))*$/;
+
+type WindowDisplayPosition = "right" | "center" | "mouse";
 
 export function GeneralSection() {
   const { config, save } = useConfigStore();
@@ -30,9 +19,28 @@ export function GeneralSection() {
   const [languageErr, setLanguageErr] = useState<string | null>(null);
   if (!config) return null;
 
-  const preferredLanguages = normalizedPreference(config.general.preferred_languages);
+  const preferredLanguages = normalizedPreference(
+    config.general.preferred_languages,
+  );
   const firstLanguage = preferredLanguages[0] ?? "zh-Hans";
   const secondLanguage = preferredLanguages[1] ?? "en";
+  const windowDisplayPosition = normalizeWindowDisplayPosition(
+    config.window.display_position,
+  );
+  const windowDisplayPositionOptions = [
+    {
+      value: "right",
+      label: t("settings-general-window-position-right", null, "Top right"),
+    },
+    {
+      value: "center",
+      label: t("settings-general-window-position-center", null, "Center"),
+    },
+    {
+      value: "mouse",
+      label: t("settings-general-window-position-mouse", null, "Follow mouse"),
+    },
+  ];
 
   const saveLanguage = (index: 0 | 1, value: string) => {
     const language = value.trim();
@@ -89,13 +97,36 @@ export function GeneralSection() {
         <p className="mt-1 text-xs text-fg-subtle">
           {t("settings-general-preferred-languages-hint")}
         </p>
-        {languageErr && <p className="mt-1 text-xs text-red-500">{languageErr}</p>}
+        {languageErr && (
+          <p className="mt-1 text-xs text-red-500">{languageErr}</p>
+        )}
+      </div>
+      <div className="border-t border-border pt-4">
+        <Combobox
+          label={t(
+            "settings-general-window-position",
+            null,
+            "Default open position",
+          )}
+          options={windowDisplayPositionOptions}
+          value={windowDisplayPosition}
+          onChange={(value) => {
+            const displayPosition = normalizeWindowDisplayPosition(value);
+            void save({
+              ...config,
+              window: {
+                ...config.window,
+                display_position: displayPosition,
+              },
+            });
+          }}
+        />
       </div>
       <div className="space-y-2 border-t border-border pt-4">
         <label className="flex cursor-pointer items-start gap-2 text-sm">
           <input
             type="checkbox"
-            className="mt-0.5 h-4 w-4 shrink-0 accent-[rgb(var(--accent))]"
+            className="checkbox"
             checked={config.general.auto_copy}
             onChange={(e) =>
               void save({
@@ -111,12 +142,34 @@ export function GeneralSection() {
         <label className="flex cursor-pointer items-start gap-2 text-sm">
           <input
             type="checkbox"
-            className="mt-0.5 h-4 w-4 shrink-0 accent-[rgb(var(--accent))]"
+            className="checkbox"
+            checked={config.general.auto_translate_clipboard_on_hotkey}
+            onChange={(e) =>
+              void save({
+                ...config,
+                general: {
+                  ...config.general,
+                  auto_translate_clipboard_on_hotkey: e.target.checked,
+                },
+              })
+            }
+          />
+          <span className="min-w-0 leading-5">
+            {t("settings-general-clipboard-hotkey")}
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="checkbox"
             checked={config.general.launch_at_startup}
             onChange={(e) =>
               void save({
                 ...config,
-                general: { ...config.general, launch_at_startup: e.target.checked },
+                general: {
+                  ...config.general,
+                  launch_at_startup: e.target.checked,
+                },
               })
             }
           />
@@ -142,12 +195,13 @@ function LanguagePreferenceField({
   t: ReturnType<typeof useT>;
   value: string;
 }) {
-  const selectValue = LANGUAGE_OPTIONS.some((language) => language.code === value) ? value : "__custom__";
+  const selectValue = COMMON_LANGUAGES.some(
+    (language) => language.code === value,
+  )
+    ? value
+    : "__custom__";
   const options = [
-    ...LANGUAGE_OPTIONS.map((language) => ({
-      value: language.code,
-      label: `${t(language.labelKey, null, language.fallback)} (${language.code})`,
-    })),
+    ...commonLanguageOptions(t),
     {
       value: "__custom__",
       label: t("settings-general-custom-bcp47"),
@@ -188,13 +242,15 @@ function normalizedPreference(languages: string[] | undefined): string[] {
     if (result.some((existing) => languageKey(existing) === key)) continue;
     result.push(value);
   }
-  if (result.length === 1) result.push(languageKey(result[0]) === "en" ? "zh-Hans" : "en");
+  if (result.length === 1)
+    result.push(languageKey(result[0]) === "en" ? "zh-Hans" : "en");
   return result;
 }
 
 function languageKey(language: string): string {
   const normalized = language.trim().replaceAll("_", "-").toLowerCase();
-  if (normalized.startsWith("zh-hans") || normalized.startsWith("zh-cn")) return "zh-hans";
+  if (normalized.startsWith("zh-hans") || normalized.startsWith("zh-cn"))
+    return "zh-hans";
   if (
     normalized.startsWith("zh-hant") ||
     normalized.startsWith("zh-tw") ||
@@ -204,4 +260,10 @@ function languageKey(language: string): string {
     return "zh-hant";
   }
   return normalized.split("-")[0] ?? normalized;
+}
+
+function normalizeWindowDisplayPosition(
+  value: string | undefined,
+): WindowDisplayPosition {
+  return value === "center" || value === "mouse" ? value : "right";
 }

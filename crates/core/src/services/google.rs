@@ -104,11 +104,15 @@ impl GoogleService {
         Ok(TranslateResult {
             service_id: ServiceId::Google,
             service_name: "Google Translate".to_string(),
+            from: req.from.clone(),
+            to: req.to.clone(),
             text: item.translated_text,
             audio_url: None,
             detected_source: item.detected_language_code,
             elapsed_ms: started.elapsed().as_millis() as u64,
             dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
             extra: None,
         })
     }
@@ -169,11 +173,15 @@ impl GoogleService {
         Ok(TranslateResult {
             service_id: ServiceId::Google,
             service_name: "Google Translate".to_string(),
+            from: req.from.clone(),
+            to: req.to.clone(),
             text,
             audio_url: None,
             detected_source: parsed.src,
             elapsed_ms: started.elapsed().as_millis() as u64,
             dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
             extra: None,
         })
     }

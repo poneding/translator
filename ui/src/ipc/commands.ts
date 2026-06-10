@@ -2,11 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   Config,
+  HotkeySourceDto,
   ServiceId,
   ServiceOutcomeDto,
   TranslationFinishedDto,
   TranslationOutcomeDto,
   TranslationStartedDto,
+  UpdateStatusDto,
 } from "../types/bindings";
 
 // ---------------------------------------------------------------------------
@@ -36,8 +38,27 @@ export interface TranslateArgs {
   request_id?: string | null;
 }
 
-export function translateText(args: TranslateArgs): Promise<ServiceOutcomeDto[]> {
+export function translateText(
+  args: TranslateArgs,
+): Promise<ServiceOutcomeDto[]> {
   return invoke<ServiceOutcomeDto[]>("translate_text", { args });
+}
+
+export interface TranslateServiceArgs extends TranslateArgs {
+  service_id: ServiceId;
+}
+
+export function translateService(
+  args: TranslateServiceArgs,
+): Promise<ServiceOutcomeDto> {
+  return invoke<ServiceOutcomeDto>("translate_service", { args });
+}
+
+export function getTextAudioUrl(args: {
+  text: string;
+  language?: string | null;
+}): Promise<string | null> {
+  return invoke<string | null>("get_text_audio_url", { args });
 }
 
 export function createRequestId(): string {
@@ -47,27 +68,14 @@ export function createRequestId(): string {
   return `translation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-// ---------------------------------------------------------------------------
-// Popup
-// ---------------------------------------------------------------------------
-
-export interface ShowPopupArgs {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export function showPopup(args: ShowPopupArgs): Promise<void> {
-  return invoke<void>("show_popup", { args });
-}
-
-export function hidePopup(): Promise<void> {
-  return invoke<void>("hide_popup");
-}
-
 export function openMainWindow(): Promise<void> {
   return invoke<void>("open_main_window");
+}
+
+export function setMainWindowAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
+  return invoke<void>("set_main_window_always_on_top", {
+    args: { always_on_top: alwaysOnTop },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +113,14 @@ export function getAppInfo(): Promise<AppInfo> {
   return invoke<AppInfo>("get_app_info");
 }
 
+export function checkUpdate(manual = true): Promise<UpdateStatusDto> {
+  return invoke<UpdateStatusDto>("check_update", { args: { manual } });
+}
+
+export function downloadAndInstallUpdate(): Promise<UpdateStatusDto> {
+  return invoke<UpdateStatusDto>("download_and_install_update");
+}
+
 export function setApiKey(serviceId: ServiceId, apiKey: string): Promise<void> {
   return invoke<void>("set_api_key", { args: { serviceId, apiKey } });
 }
@@ -137,8 +153,12 @@ export function readClipboard(): Promise<string> {
 // Events
 // ---------------------------------------------------------------------------
 
-export function onHotkeyPressed(handler: () => void): Promise<UnlistenFn> {
-  return listen("translator://hotkey-pressed", () => handler());
+export function onHotkeySource(
+  handler: (payload: HotkeySourceDto) => void,
+): Promise<UnlistenFn> {
+  return listen<HotkeySourceDto>("translator://hotkey-source", ({ payload }) =>
+    handler(payload),
+  );
 }
 
 export function onOpenSettingsRequested(
@@ -182,6 +202,14 @@ export function onConfigUpdated(
   handler: (payload: Config) => void,
 ): Promise<UnlistenFn> {
   return listen<Config>("translator://config-updated", ({ payload }) =>
+    handler(payload),
+  );
+}
+
+export function onUpdateStatus(
+  handler: (payload: UpdateStatusDto) => void,
+): Promise<UnlistenFn> {
+  return listen<UpdateStatusDto>("translator://update-status", ({ payload }) =>
     handler(payload),
   );
 }

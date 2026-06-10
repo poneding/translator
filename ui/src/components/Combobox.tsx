@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, type LucideIcon } from "lucide-react";
 
 export interface ComboboxOption {
+  Icon?: LucideIcon;
+  flag?: string;
+  leading?: string;
   value: string;
   label: string;
 }
@@ -12,6 +15,7 @@ export function Combobox({
   label,
   onChange,
   options,
+  selectedDisplay = "full",
   value,
 }: {
   ariaLabel?: string;
@@ -19,6 +23,7 @@ export function Combobox({
   label?: string;
   onChange: (value: string) => void;
   options: ComboboxOption[];
+  selectedDisplay?: "full" | "leading";
   value: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -47,9 +52,11 @@ export function Combobox({
         className="input flex h-8 items-center justify-between gap-2 text-left"
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="min-w-0 truncate">
-          {selected?.label ?? value}
-        </span>
+        <ComboboxOptionContent
+          display={selectedDisplay}
+          option={selected}
+          fallback={value}
+        />
         <ChevronDown
           size={15}
           aria-hidden="true"
@@ -60,7 +67,7 @@ export function Combobox({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-border bg-bg py-1 shadow-lg"
+          className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-border bg-bg py-1 shadow-lg"
         >
           {options.map((option) => {
             const active = option.value === value;
@@ -76,7 +83,7 @@ export function Combobox({
                   setOpen(false);
                 }}
               >
-                <span className="min-w-0 truncate">{option.label}</span>
+                <ComboboxOptionContent option={option} />
                 {active && <Check size={14} aria-hidden="true" />}
               </button>
             );
@@ -84,5 +91,43 @@ export function Combobox({
         </div>
       )}
     </div>
+  );
+}
+
+function ComboboxOptionContent({
+  display = "full",
+  fallback,
+  option,
+}: {
+  display?: "full" | "leading";
+  fallback?: string;
+  option?: ComboboxOption;
+}) {
+  const Icon = option?.Icon;
+  if (display === "leading") {
+    return (
+      <span className="min-w-0 flex-1 truncate text-center font-semibold">
+        {option?.leading ?? option?.label ?? fallback}
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      {Icon && (
+        <Icon
+          size={15}
+          aria-hidden="true"
+          className="shrink-0 text-fg-subtle"
+        />
+      )}
+      {option?.flag && (
+        <span className="shrink-0 text-sm leading-none">{option.flag}</span>
+      )}
+      <span className="min-w-0 truncate">{option?.label ?? fallback}</span>
+      {option?.leading && (
+        <span className="language-code-badge">{option.leading}</span>
+      )}
+    </span>
   );
 }

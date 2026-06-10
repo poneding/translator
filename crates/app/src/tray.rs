@@ -10,8 +10,10 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, Runtime,
+    AppHandle, Runtime,
 };
+
+use crate::commands;
 
 const TRAY_ICON_BYTES: &[u8] = include_bytes!("../icons/icon.png");
 
@@ -33,18 +35,10 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open_main" => {
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                    let _ = app.emit("translator://open-main", ());
-                }
+                let _ = commands::show_main_window(app, Some("translator://open-main"));
             }
             "open_settings" => {
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                    let _ = app.emit("translator://open-settings", ());
-                }
+                let _ = commands::show_main_window(app, Some("translator://open-settings"));
             }
             "quit" => {
                 app.exit(0);
@@ -59,11 +53,7 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             } = event
             {
                 let app = tray.app_handle();
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                    let _ = app.emit("translator://open-main", ());
-                }
+                let _ = commands::show_main_window(app, Some("translator://open-main"));
             }
         })
         .build(app)?;

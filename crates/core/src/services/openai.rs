@@ -266,11 +266,15 @@ impl TranslationService for OpenAIService {
         Ok(TranslateResult {
             service_id: ServiceId::OpenAI,
             service_name: "OpenAI Compatible".to_string(),
+            from: req.from.clone(),
+            to: req.to.clone(),
             text,
             audio_url: None,
             detected_source: None,
             elapsed_ms,
             dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
             extra: None,
         })
     }

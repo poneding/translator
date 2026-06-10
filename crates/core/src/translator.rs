@@ -140,6 +140,70 @@ impl Translator {
         outcomes
     }
 
+    /// Translate with one enabled service.
+    pub async fn translate_service(
+        &self,
+        service_id: ServiceId,
+        req: &TranslateRequest,
+        cfg: &Config,
+    ) -> TranslateOutcome {
+        let Some(sc) = cfg
+            .services
+            .get(service_id.as_str())
+            .filter(|service| service.enabled)
+            .cloned()
+        else {
+            return TranslateOutcome {
+                service_id,
+                service_name: service_id.display_name().to_string(),
+                result: Err(ServiceError::Api {
+                    code: "disabled".to_string(),
+                    message: format!("{} is disabled", service_id.as_str()),
+                }),
+            };
+        };
+
+        let Some(service) = self.find_service(service_id) else {
+            return TranslateOutcome {
+                service_id,
+                service_name: service_id.display_name().to_string(),
+                result: Err(ServiceError::Api {
+                    code: "unknown_service".to_string(),
+                    message: format!("unknown service: {}", service_id.as_str()),
+                }),
+            };
+        };
+
+        let client = match client_for_config(cfg) {
+            Ok(client) => client,
+            Err(error) => {
+                return TranslateOutcome {
+                    service_id,
+                    service_name: service.display_name().to_string(),
+                    result: Err(ServiceError::Api {
+                        code: "proxy".to_string(),
+                        message: error.to_string(),
+                    }),
+                };
+            }
+        };
+
+        let (api_key, preflight_error) = match api_key_for_service(service.as_ref(), &sc) {
+            Ok(ApiKeyDecision::Ready(api_key)) => (api_key, None),
+            Err(error) => (None, Some(error)),
+        };
+
+        TranslationJob {
+            service,
+            config: sc,
+            api_key,
+            client,
+            preflight_error,
+        }
+        .translate(req)
+        .await
+    }
+
     fn find_service(&self, id: ServiceId) -> Option<Arc<dyn TranslationService>> {
         self.services.iter().find(|s| s.id() == id).cloned()
     }

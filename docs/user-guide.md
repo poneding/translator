@@ -1,6 +1,6 @@
 # translator user guide
 
-> Cross-platform select-and-translate. Pick text anywhere, press a hotkey, get translations in a popup.
+> Cross-platform select-and-translate. Pick text anywhere, press a hotkey, get translations in the main window.
 
 ## Install
 
@@ -31,12 +31,28 @@ Windows and Linux do not require any special permission.
 
 ### 3. Press the hotkey
 
-Default: **⌘+Shift+D** on macOS, **Ctrl+Shift+D** elsewhere.
+Default: **Cmd+T** on macOS, **Alt+T** elsewhere.
 
 1. Select any text in any app
 2. Press the hotkey
-3. A popup appears near the cursor with translations from all enabled services
-4. Click **Copy** to put a result on the clipboard; press **Esc** to close
+3. The main translator window opens, fills the source text, and starts translation
+4. Click **Copy** to put a result on the clipboard; press **Esc** to hide the window
+
+If no text is selected, Settings -> General can enable **Use clipboard text
+when hotkey opens with no selection**. The app reads the clipboard only when
+the hotkey is pressed; it does not monitor the clipboard continuously.
+
+## Main window
+
+- **Pin** in the titlebar keeps the translator window always on top and
+  persists across restarts.
+- The source editor grows with your text. Its bottom toolbar always contains
+  source audio, copy, `Auto -> target language`, clear, and translate.
+- The row below the editor shows enabled services and a refresh button for
+  re-running all services.
+- Each result card has its own refresh button on hover/focus, so one service
+  can be retried without replacing the others.
+- Source audio speaks the source text. Result audio speaks the translated text.
 
 ## Supported services
 
@@ -52,6 +68,19 @@ Default: **⌘+Shift+D** on macOS, **Ctrl+Shift+D** elsewhere.
 
 Settings → **Hotkey** → edit the field. Use the Tauri global-shortcut syntax, e.g. `CmdOrCtrl+Shift+D`, `Alt+T`, `Super+E`.
 
+## Appearance and language
+
+Settings -> **Appearance** controls the theme and app language. App language
+can follow the system or use any common translation language listed in the
+dropdown. Changes apply without restarting the app.
+
+## Updates
+
+Settings -> **Update** controls automatic update checks, beta eligibility, and
+manual checks. Startup checks run asynchronously and do not block the tray,
+hotkey, or first window paint. Updates are never installed silently; click
+**Download and install** when an available update is shown.
+
 ## Privacy
 
 - translator runs entirely on your machine. It does not phone home.
@@ -62,8 +91,8 @@ Settings → **Hotkey** → edit the field. Use the Tauri global-shortcut syntax
 
 | Symptom | Fix |
 | --- | --- |
-| Popup says "Accessibility permission" | macOS: grant it in System Settings (see above). |
-| Popup says "No text selected" | Click inside the source window first to give it focus, then select again before pressing the hotkey. |
+| Main window says "Accessibility permission" | macOS: grant it in System Settings (see above). |
+| Hotkey opens an empty source editor | Select text before pressing the hotkey, or enable clipboard fallback in Settings -> General. |
 | DeepL returns 403 | Free and Pro keys use different endpoints; the service auto-selects, but if you have a Pro key, set `endpoint: "pro"` in options. |
 | Google returns 403 | Make sure Cloud Translation API is enabled for your GCP project. |
 | OpenAI returns 401 | Verify the API key and the base URL. |

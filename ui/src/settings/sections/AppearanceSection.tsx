@@ -1,34 +1,78 @@
+import { Monitor, Moon, Sun } from "lucide-react";
+import { Combobox } from "../../components/Combobox";
 import { useConfigStore } from "../../stores/config";
-import { useT } from "../../i18n";
+import { setLocale, useT } from "../../i18n";
+import { appLanguageOptions, normalizeAppLanguage } from "../../i18n/languages";
+import type { AppLanguageCode } from "../../types/bindings";
+
+type Theme = "system" | "light" | "dark";
 
 export function AppearanceSection() {
   const { config, save } = useConfigStore();
   const t = useT();
   if (!config) return null;
-  const theme = config.general.theme;
-  const themeLabels: Record<"system" | "light" | "dark", string> = {
+  const theme = config.general.theme as Theme;
+  const appLanguage = normalizeAppLanguage(config.general.app_language);
+  const languageOptions = appLanguageOptions(t);
+  const themeLabels: Record<Theme, string> = {
     system: t("settings-appearance-theme-system"),
     light: t("settings-appearance-theme-light"),
     dark: t("settings-appearance-theme-dark"),
   };
+  const themeOptions = [
+    {
+      value: "system",
+      label: themeLabels.system,
+      Icon: Monitor,
+    },
+    {
+      value: "light",
+      label: themeLabels.light,
+      Icon: Sun,
+    },
+    {
+      value: "dark",
+      label: themeLabels.dark,
+      Icon: Moon,
+    },
+  ];
+
   return (
-    <div>
-      <label className="label">{t("settings-appearance-theme")}</label>
-      <div className="inline-flex rounded-lg border border-border bg-bg-subtle p-0.5 text-sm">
-        {(["system", "light", "dark"] as const).map((item) => (
-          <button
-            key={item}
-            aria-label={t("settings-appearance-theme-aria", { theme: themeLabels[item] }, `Theme: ${themeLabels[item]}`)}
-            aria-pressed={theme === item}
-            className={
-              "rounded-md px-3 py-1 " +
-              (theme === item ? "bg-bg text-fg shadow" : "text-fg-subtle hover:text-fg")
-            }
-            onClick={() => void save({ ...config, general: { ...config.general, theme: item } })}
-          >
-            {themeLabels[item]}
-          </button>
-        ))}
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Combobox
+        ariaLabel={t(
+          "settings-appearance-theme-aria",
+          { theme: themeLabels[theme] },
+          `Theme: ${themeLabels[theme]}`,
+        )}
+        label={t("settings-appearance-theme")}
+        options={themeOptions}
+        value={theme}
+        onChange={(value) => {
+          const next = value as Theme;
+          void save({
+            ...config,
+            general: { ...config.general, theme: next },
+          });
+        }}
+      />
+      <div className="min-w-0">
+        <Combobox
+          label={t("settings-appearance-language", null, "App language")}
+          options={languageOptions}
+          value={appLanguage}
+          onChange={(value) => {
+            const next = normalizeAppLanguage(value);
+            setLocale(next);
+            void save({
+              ...config,
+              general: {
+                ...config.general,
+                app_language: next as AppLanguageCode,
+              },
+            });
+          }}
+        />
       </div>
     </div>
   );

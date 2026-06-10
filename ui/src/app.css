@@ -82,26 +82,30 @@
 
 @layer components {
   .app-titlebar {
-    @apply grid h-[34px] shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center border-b border-border
+    @apply relative grid h-[34px] shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center border-b border-border
            bg-bg-subtle text-fg select-none;
   }
   .app-titlebar-mac {
-    @apply grid-cols-[72px_minmax(0,1fr)_auto];
+    @apply grid-cols-[72px_auto_minmax(0,1fr)_auto];
+  }
+  .titlebar-leading {
+    @apply z-10 flex items-center gap-1 px-2;
   }
   .titlebar-title {
-    @apply flex min-w-0 items-baseline gap-2 px-4;
+    @apply pointer-events-none absolute left-1/2 top-1/2 flex max-w-[48%] -translate-x-1/2 -translate-y-1/2
+           items-center justify-center gap-1.5 px-2;
   }
-  .app-titlebar-mac .titlebar-title {
-    @apply px-2;
+  .titlebar-title img {
+    @apply h-4 w-4 shrink-0;
   }
   .titlebar-title h1 {
-    @apply shrink-0 text-sm font-semibold leading-none;
+    @apply min-w-0 truncate text-sm font-semibold leading-none;
   }
-  .titlebar-title p {
-    @apply min-w-0 truncate text-xs leading-none text-fg-subtle;
+  .titlebar-spacer {
+    @apply z-0 h-full min-w-0;
   }
   .titlebar-actions {
-    @apply flex items-center gap-1 px-2;
+    @apply z-10 flex items-center gap-1 px-2;
   }
   .titlebar-icon-btn {
     @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent
@@ -113,7 +117,7 @@
     @apply bg-border text-fg;
   }
   .windows-window-controls {
-    @apply flex h-full items-stretch;
+    @apply z-10 flex h-full items-stretch;
   }
   .window-control {
     @apply inline-flex h-[34px] w-11 items-center justify-center text-fg-subtle
@@ -124,7 +128,7 @@
     @apply hover:bg-red-500 hover:text-white;
   }
   .mac-window-controls {
-    @apply flex h-[34px] items-center gap-2 px-4;
+    @apply z-10 flex h-[34px] items-center gap-2 px-4;
   }
   .mac-window-control {
     @apply inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border
@@ -140,8 +144,8 @@
   .mac-window-minimize {
     @apply border-yellow-500/70 bg-yellow-400;
   }
-  .mac-window-maximize {
-    @apply border-green-500/70 bg-green-500;
+  .mac-window-spacer {
+    @apply pointer-events-none border-border bg-border/60;
   }
   .btn {
     @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border
@@ -157,8 +161,27 @@
   .btn-primary {
     @apply border-transparent bg-accent text-white hover:bg-accent/90;
   }
+  .btn-secondary {
+    @apply border-border bg-bg-subtle text-fg hover:bg-border;
+  }
   .btn-ghost {
     @apply border-transparent bg-transparent text-fg-subtle hover:bg-border hover:text-fg;
+  }
+  .language-code-badge {
+    @apply inline-flex h-5 min-w-8 shrink-0 items-center justify-center rounded border border-border
+           bg-bg-subtle px-1 text-[10px] font-semibold leading-none text-fg-subtle;
+  }
+  .checkbox {
+    @apply mt-0.5 h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-border
+           bg-bg transition focus:outline-none focus:ring-2 focus:ring-accent/50
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .checkbox:checked {
+    @apply border-accent bg-accent;
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M3.5 8.2 6.6 11.3 12.5 4.7' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
   }
   .input {
     @apply w-full rounded-md border border-border bg-bg px-3 py-1.5 text-sm text-fg
@@ -169,5 +192,74 @@
   }
   .card {
     @apply rounded-lg border border-border bg-bg-subtle p-4;
+  }
+  .source-editor {
+    @apply relative z-0 rounded-lg border border-border bg-bg;
+  }
+  .source-editor:focus-within {
+    @apply z-30 border-accent ring-2 ring-accent/30;
+  }
+  .source-editor-textarea {
+    @apply block w-full resize-none bg-transparent px-3 pb-12 pt-3 text-sm leading-6 text-fg outline-none;
+    min-height: 108px;
+    max-height: 156px;
+  }
+  .source-toolbar {
+    @apply absolute inset-x-2 bottom-1.5 z-40 grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-2
+           px-1 py-0;
+  }
+  .source-toolbar-left,
+  .source-toolbar-right {
+    @apply flex items-center;
+  }
+  .source-toolbar-left {
+    @apply min-w-0 gap-1;
+  }
+  .source-toolbar-right {
+    @apply shrink-0 gap-2;
+  }
+  .source-audio-controls {
+    @apply flex min-w-0 items-center gap-1 overflow-hidden text-xs;
+  }
+  .source-audio-item {
+    @apply inline-flex min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-md px-1 text-fg-subtle;
+  }
+  .service-status-row {
+    @apply flex min-h-8 items-center justify-between gap-3;
+  }
+  .service-status-services {
+    @apply ml-auto inline-flex min-w-0 items-center justify-end gap-2 text-xs text-fg-subtle;
+  }
+  .source-language-flow {
+    @apply flex min-w-0 items-center gap-1.5 text-xs text-fg-subtle;
+  }
+  .language-short-code {
+    @apply inline-flex min-w-6 shrink-0 items-center justify-center font-semibold text-fg-subtle;
+  }
+  .source-target-select {
+    @apply z-50 min-w-12;
+    width: fit-content;
+    max-width: min(14rem, 42vw);
+  }
+  .source-target-select .input {
+    @apply h-7 min-w-12 border-transparent bg-transparent px-1.5 py-1 text-xs hover:bg-bg-subtle
+           focus:border-transparent;
+    width: auto;
+    max-width: 100%;
+  }
+  .source-target-select [role="listbox"] {
+    width: max-content;
+    min-width: 100%;
+    max-width: min(16rem, 72vw);
+  }
+  .result-card {
+    @apply rounded-lg border border-border bg-bg-subtle p-3;
+  }
+  .result-card-refresh {
+    @apply opacity-0 pointer-events-none;
+  }
+  .result-card:hover .result-card-refresh,
+  .result-card:focus-within .result-card-refresh {
+    @apply opacity-100 pointer-events-auto;
   }
 }

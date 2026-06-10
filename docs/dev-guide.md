@@ -90,3 +90,20 @@ cargo test -p translator-core --lib services::
 4. The `release.yml` workflow builds `.dmg` / `.msi` / `.AppImage` / `.deb`
    artifacts and opens a draft GitHub release with git-cliff notes attached.
 5. Manually verify the draft artifacts and notes, then publish.
+
+## Updater development
+
+The app uses the official `tauri-plugin-updater`.
+
+- Generate a Tauri updater key pair with `cargo tauri signer generate`.
+- Commit only the public key in `crates/app/tauri.conf.json`
+  `plugins.updater.pubkey`; never commit the private key.
+- Store the private key in GitHub Actions as `TAURI_SIGNING_PRIVATE_KEY` and
+  the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- Stable checks use
+  `https://github.com/poneding/translator/releases/latest/download/latest.json`.
+- Beta checks use the `beta` release/tag manifest URL configured in
+  `crates/app/src/commands.rs`; keep that manifest pointed at the newest beta
+  or prerelease build.
+- For local updater QA, serve a static `latest.json` and signed updater
+  artifact, then temporarily point the endpoint constants at the local server.

@@ -82,9 +82,13 @@ pub struct TranslateResult {
     pub service_id: ServiceId,
     /// Human-readable service name (resolved at call time).
     pub service_name: String,
+    /// Source language resolved for this request, or `None` when provider auto-detect is used.
+    pub from: Option<String>,
+    /// Target language resolved for this request.
+    pub to: String,
     /// Translated text.
     pub text: String,
-    /// Primary source-word audio URL, when the service provides one.
+    /// Primary translated-text audio URL, when the service provides one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_url: Option<String>,
     /// Language code detected by the service, if any.
@@ -94,6 +98,12 @@ pub struct TranslateResult {
     /// Structured dictionary details for word lookup results.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dictionary: Option<DictionaryResult>,
+    /// Dictionary details for the original source text.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_dictionary: Option<DictionaryResult>,
+    /// Dictionary details for the translated target text.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_dictionary: Option<DictionaryResult>,
     /// Optional extras (e.g. Youdao dictionary entries).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra: Option<serde_json::Value>,

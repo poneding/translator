@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
 
+pub mod audio;
 pub mod config;
 pub mod error;
 pub mod language_direction;

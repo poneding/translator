@@ -37,7 +37,10 @@ function apply(choice: ThemeChoice, os: ResolvedTheme | null): void {
 
 export function useTheme(choice: ThemeChoice): void {
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       // No media-query support (very old WebView) — fall back to the choice.
       apply(choice, null);
       return;
@@ -65,4 +68,3 @@ export function useTheme(choice: ThemeChoice): void {
     };
   }, [choice]);
 }
-

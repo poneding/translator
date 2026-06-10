@@ -84,7 +84,7 @@ impl BingService {
             .send()
             .await?;
 
-        Self::parse_translate_response(response, started).await
+        Self::parse_translate_response(req, response, started).await
     }
 
     async fn translate_web(
@@ -121,10 +121,11 @@ impl BingService {
             .send()
             .await?;
 
-        Self::parse_translate_response(response, started).await
+        Self::parse_translate_response(req, response, started).await
     }
 
     async fn parse_translate_response(
+        req: &TranslateRequest,
         response: reqwest::Response,
         started: Instant,
     ) -> ServiceResult<TranslateResult> {
@@ -175,11 +176,15 @@ impl BingService {
         Ok(TranslateResult {
             service_id: ServiceId::Bing,
             service_name: "Microsoft Translator".to_string(),
+            from: req.from.clone(),
+            to: req.to.clone(),
             text: translation.text,
             audio_url: None,
             detected_source: detected,
             elapsed_ms,
             dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
             extra: None,
         })
     }

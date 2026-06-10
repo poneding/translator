@@ -5,12 +5,26 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Runtime, State, WebviewWindow};
+use tauri::{
+    AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize, Position,
+    Runtime, Size, State, WebviewWindow,
+};
+use tauri_plugin_updater::UpdaterExt;
 
-use translator_core::{Config, ServiceError, TranslateResult};
-use translator_platform::{position, Rect, SelectionError};
+use translator_core::{Config, ServiceError, ServiceId, TranslateResult};
+use translator_platform::SelectionError;
 
 use crate::state::AppState;
+
+const STABLE_UPDATE_ENDPOINT: &str =
+    "https://github.com/poneding/translator/releases/latest/download/latest.json";
+const BETA_UPDATE_ENDPOINT: &str =
+    "https://github.com/poneding/translator/releases/download/beta/latest.json";
+const MAIN_WINDOW_DEFAULT_WIDTH: f64 = 680.0;
+const MAIN_WINDOW_DEFAULT_HEIGHT: f64 = 560.0;
+const MAIN_WINDOW_MAX_WIDTH: f64 = 920.0;
+const MAIN_WINDOW_MAX_HEIGHT: f64 = 4096.0;
+const WINDOW_EDGE_MARGIN: i32 = 24;
 
 // ---------------------------------------------------------------------------
 // Selection
@@ -128,6 +142,56 @@ pub async fn translate_text(
     Ok(dtos)
 }
 
+#[derive(Debug, Deserialize)]
+pub struct TranslateServiceArgs {
+    pub service_id: String,
+    pub text: String,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub request_id: Option<String>,
+}
+
+/// Translate text via one service. Used by per-card refresh in the main UI.
+#[tauri::command]
+pub async fn translate_service(
+    args: TranslateServiceArgs,
+    state: State<'_, Arc<AppState>>,
+) -> Result<ServiceOutcomeDto, String> {
+    let cfg = Config::load().map_err(|e| e.to_string())?;
+    let service_id = parse_service_id(&args.service_id)?;
+    let req = translator_core::translate_request(
+        args.text.trim().to_string(),
+        &cfg.general,
+        args.from,
+        args.to,
+    );
+    if req.text.is_empty() {
+        return Err("text is empty".to_string());
+    }
+
+    let _request_id = args.request_id.unwrap_or_else(new_request_id);
+    let outcome = state
+        .translator
+        .translate_service(service_id, &req, &cfg)
+        .await;
+    Ok(ServiceOutcomeDto::from(outcome))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TextAudioArgs {
+    pub text: String,
+    pub language: Option<String>,
+}
+
+/// Return a text-to-speech URL for source-editor playback.
+#[tauri::command]
+pub fn get_text_audio_url(args: TextAudioArgs) -> Result<Option<String>, String> {
+    Ok(translator_core::audio::default_text_audio_url(
+        &args.text,
+        args.language.as_deref(),
+    ))
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct ServiceOutcomeDto {
     pub service_id: String,
@@ -219,60 +283,22 @@ fn new_request_id() -> String {
     format!("translation-{millis}")
 }
 
-// ---------------------------------------------------------------------------
-// Popup window
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize)]
-pub struct ShowPopupArgs {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
+fn parse_service_id(value: &str) -> Result<ServiceId, String> {
+    match value {
+        "youdao" => Ok(ServiceId::Youdao),
+        "deepl" => Ok(ServiceId::DeepL),
+        "google" => Ok(ServiceId::Google),
+        "bing" => Ok(ServiceId::Bing),
+        "openai" => Ok(ServiceId::OpenAI),
+        other => Err(format!("unknown service: {other}")),
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct HotkeyPayload {
     pub text: Option<String>,
     pub error: Option<String>,
-}
-
-/// Show the floating popup at the given position.
-#[tauri::command]
-pub fn show_popup<R: Runtime>(app: AppHandle<R>, args: ShowPopupArgs) -> Result<(), String> {
-    let win: WebviewWindow<R> = app
-        .get_webview_window("popup")
-        .ok_or_else(|| "popup window not found".to_string())?;
-    let screen = monitor_rects(&app)
-        .into_iter()
-        .next()
-        .unwrap_or_else(fallback_screen);
-    let (x, y) = position::clamp_to_screen(
-        args.x,
-        args.y,
-        args.width as i32,
-        args.height as i32,
-        screen,
-    );
-    win.set_size(tauri::LogicalSize::new(
-        args.width as f64,
-        args.height as f64,
-    ))
-    .map_err(|e| e.to_string())?;
-    win.set_position(PhysicalPosition::new(x, y))
-        .map_err(|e| e.to_string())?;
-    win.show().map_err(|e| e.to_string())?;
-    win.set_focus().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-/// Hide the floating popup.
-#[tauri::command]
-pub fn hide_popup<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window("popup") {
-        let _ = win.hide();
-    }
-    Ok(())
+    pub source: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -282,25 +308,143 @@ pub fn hide_popup<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
 /// Open the main window and switch it to the settings view.
 #[tauri::command]
 pub fn open_settings<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
-    let win: WebviewWindow<R> = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main window not found".to_string())?;
-    win.show().map_err(|e| e.to_string())?;
-    win.set_focus().map_err(|e| e.to_string())?;
-    let _ = app.emit("translator://open-settings", ());
-    Ok(())
+    show_main_window(&app, Some("translator://open-settings"))
 }
 
 /// Open the main translation window.
 #[tauri::command]
 pub fn open_main_window<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    show_main_window(&app, Some("translator://open-main"))
+}
+
+pub(crate) fn show_main_window<R: Runtime>(
+    app: &AppHandle<R>,
+    event: Option<&str>,
+) -> Result<(), String> {
+    let cfg = Config::load().unwrap_or_default();
     let win: WebviewWindow<R> = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
+    prepare_main_window(app, &win, &cfg)?;
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
-    let _ = app.emit("translator://open-main", ());
+    if let Some(event) = event {
+        let _ = app.emit(event, ());
+    }
     Ok(())
+}
+
+pub(crate) fn prepare_main_window<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &WebviewWindow<R>,
+    cfg: &Config,
+) -> Result<(), String> {
+    win.set_always_on_top(cfg.window.always_on_top)
+        .map_err(|e| e.to_string())?;
+    let _ = win.set_maximizable(false);
+    let _ = win.set_max_size(Some(Size::Logical(LogicalSize::new(
+        MAIN_WINDOW_MAX_WIDTH,
+        MAIN_WINDOW_MAX_HEIGHT,
+    ))));
+    position_main_window(app, win, &cfg.window.display_position)
+}
+
+fn position_main_window<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &WebviewWindow<R>,
+    display_position: &str,
+) -> Result<(), String> {
+    let cursor = app.cursor_position().ok();
+    let monitor = target_monitor(app, win, cursor)?;
+    let Some(monitor) = monitor else {
+        return Ok(());
+    };
+    let size = win.outer_size().unwrap_or_else(|_| {
+        PhysicalSize::new(
+            MAIN_WINDOW_DEFAULT_WIDTH as u32,
+            MAIN_WINDOW_DEFAULT_HEIGHT as u32,
+        )
+    });
+    let work = monitor.work_area();
+    let left = work.position.x;
+    let top = work.position.y;
+    let right = left + work.size.width as i32;
+    let bottom = top + work.size.height as i32;
+    let width = size.width as i32;
+    let height = size.height as i32;
+
+    let (raw_x, raw_y) = match display_position {
+        "center" => (
+            left + (work.size.width as i32 - width) / 2,
+            top + (work.size.height as i32 - height) / 2,
+        ),
+        "mouse" => {
+            if let Some(cursor) = cursor {
+                (cursor.x.round() as i32 + 16, cursor.y.round() as i32 + 16)
+            } else {
+                (right - width - WINDOW_EDGE_MARGIN, top + WINDOW_EDGE_MARGIN)
+            }
+        }
+        _ => (right - width - WINDOW_EDGE_MARGIN, top + WINDOW_EDGE_MARGIN),
+    };
+
+    let x = clamp_window_axis(raw_x, left, right, width);
+    let y = clamp_window_axis(raw_y, top, bottom, height);
+    win.set_position(Position::Physical(PhysicalPosition::new(x, y)))
+        .map_err(|e| e.to_string())
+}
+
+fn target_monitor<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &WebviewWindow<R>,
+    cursor: Option<PhysicalPosition<f64>>,
+) -> Result<Option<Monitor>, String> {
+    if let Some(cursor) = cursor {
+        if let Some(monitor) = app
+            .monitor_from_point(cursor.x, cursor.y)
+            .map_err(|e| e.to_string())?
+        {
+            return Ok(Some(monitor));
+        }
+    }
+    if let Some(monitor) = win.current_monitor().map_err(|e| e.to_string())? {
+        return Ok(Some(monitor));
+    }
+    win.primary_monitor().map_err(|e| e.to_string())
+}
+
+fn clamp_window_axis(value: i32, min: i32, max: i32, window_size: i32) -> i32 {
+    let upper = max - window_size;
+    if upper <= min {
+        min
+    } else {
+        value.clamp(min, upper)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AlwaysOnTopArgs {
+    pub always_on_top: bool,
+}
+
+/// Apply the main window always-on-top state immediately.
+#[tauri::command]
+pub fn set_main_window_always_on_top<R: Runtime>(
+    app: AppHandle<R>,
+    args: AlwaysOnTopArgs,
+) -> Result<(), String> {
+    apply_main_window_always_on_top(&app, args.always_on_top)
+}
+
+pub(crate) fn apply_main_window_always_on_top<R: Runtime>(
+    app: &AppHandle<R>,
+    always_on_top: bool,
+) -> Result<(), String> {
+    let win: WebviewWindow<R> = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    win.set_always_on_top(always_on_top)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Deserialize)]
@@ -367,6 +511,7 @@ pub fn save_config<R: Runtime>(app: AppHandle<R>, config: Config) -> Result<(), 
     }
     let config = config.normalized();
     config.save().map_err(|e| e.to_string())?;
+    apply_main_window_always_on_top(&app, config.window.always_on_top)?;
     let _ = app.emit("translator://config-updated", &config);
     Ok(())
 }
@@ -406,6 +551,243 @@ pub fn get_app_info() -> AppInfoDto {
         commit: option_env!("GIT_COMMIT").unwrap_or("dev").to_string(),
         build_date: option_env!("BUILD_DATE").unwrap_or("dev").to_string(),
         repo_url: "https://github.com/poneding/translator".to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Updates
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, Serialize)]
+pub struct UpdateInfoDto {
+    pub available: bool,
+    pub version: Option<String>,
+    pub current_version: String,
+    pub channel: String,
+    pub date: Option<String>,
+    pub body: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct UpdateStatusDto {
+    pub status: String,
+    pub update: Option<UpdateInfoDto>,
+    pub error: Option<String>,
+    pub downloaded: Option<u64>,
+    pub total: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckUpdateArgs {
+    pub manual: Option<bool>,
+}
+
+/// Check for updates with the official Tauri updater plugin.
+#[tauri::command]
+pub async fn check_update<R: Runtime>(
+    app: AppHandle<R>,
+    args: CheckUpdateArgs,
+) -> Result<UpdateStatusDto, String> {
+    let _manual = args.manual.unwrap_or(false);
+    emit_update_status(&app, UpdateStatusDto::checking());
+    let cfg = Config::load().map_err(|e| e.to_string())?;
+    let status = check_update_inner(&app, &cfg).await;
+    emit_update_status(&app, status.clone());
+    Ok(status)
+}
+
+/// Download and install the currently available update.
+#[tauri::command]
+pub async fn download_and_install_update<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<UpdateStatusDto, String> {
+    emit_update_status(&app, UpdateStatusDto::installing(None, None));
+    let cfg = Config::load().map_err(|e| e.to_string())?;
+    let updater = match updater_for_config(&app, &cfg) {
+        Ok(updater) => updater,
+        Err(error) => {
+            let status = UpdateStatusDto::failed(error);
+            emit_update_status(&app, status.clone());
+            return Ok(status);
+        }
+    };
+    let update = match updater.check().await {
+        Ok(Some(update)) => update,
+        Ok(None) => {
+            let status = UpdateStatusDto::failed("no update available".to_string());
+            emit_update_status(&app, status.clone());
+            return Ok(status);
+        }
+        Err(error) => {
+            let status = UpdateStatusDto::failed(error.to_string());
+            emit_update_status(&app, status.clone());
+            return Ok(status);
+        }
+    };
+
+    let progress_app = app.clone();
+    let mut downloaded = 0_u64;
+    let result = update
+        .download_and_install(
+            |chunk, total| {
+                downloaded = downloaded.saturating_add(chunk as u64);
+                emit_update_status(
+                    &progress_app,
+                    UpdateStatusDto::installing(Some(downloaded), total),
+                );
+            },
+            || {
+                emit_update_status(&progress_app, UpdateStatusDto::installing(None, None));
+            },
+        )
+        .await;
+
+    match result {
+        Ok(()) => {
+            let status = UpdateStatusDto {
+                status: "installed".to_string(),
+                update: None,
+                error: None,
+                downloaded: None,
+                total: None,
+            };
+            emit_update_status(&app, status.clone());
+            Ok(status)
+        }
+        Err(error) => {
+            let status = UpdateStatusDto::failed(error.to_string());
+            emit_update_status(&app, status.clone());
+            Ok(status)
+        }
+    }
+}
+
+pub(crate) async fn run_startup_update_check<R: Runtime>(app: AppHandle<R>) {
+    let cfg = Config::load().unwrap_or_default();
+    if !cfg.updates.check_on_startup {
+        return;
+    }
+    let status = check_update_inner(&app, &cfg).await;
+    if status.status == "failed" {
+        if let Some(error) = &status.error {
+            tracing::warn!(error = %error, "startup update check failed");
+        }
+    }
+    emit_update_status(&app, status);
+}
+
+async fn check_update_inner<R: Runtime>(app: &AppHandle<R>, cfg: &Config) -> UpdateStatusDto {
+    let updater = match updater_for_config(app, cfg) {
+        Ok(updater) => updater,
+        Err(error) => return UpdateStatusDto::failed(error),
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => UpdateStatusDto {
+            status: "available".to_string(),
+            update: Some(UpdateInfoDto {
+                available: true,
+                version: Some(update.version.clone()),
+                current_version: update.current_version.clone(),
+                channel: update_channel(&update.version),
+                date: update.date.map(|date| date.to_string()),
+                body: update.body.clone(),
+            }),
+            error: None,
+            downloaded: None,
+            total: None,
+        },
+        Ok(None) => UpdateStatusDto {
+            status: "up-to-date".to_string(),
+            update: Some(UpdateInfoDto {
+                available: false,
+                version: None,
+                current_version: env!("CARGO_PKG_VERSION").to_string(),
+                channel: if cfg.updates.allow_beta {
+                    "beta".to_string()
+                } else {
+                    "stable".to_string()
+                },
+                date: None,
+                body: None,
+            }),
+            error: None,
+            downloaded: None,
+            total: None,
+        },
+        Err(error) => UpdateStatusDto::failed(error.to_string()),
+    }
+}
+
+fn updater_for_config<R: Runtime>(
+    app: &AppHandle<R>,
+    cfg: &Config,
+) -> Result<tauri_plugin_updater::Updater, String> {
+    let endpoint = if cfg.updates.allow_beta {
+        BETA_UPDATE_ENDPOINT
+    } else {
+        STABLE_UPDATE_ENDPOINT
+    };
+    let endpoint = url::Url::parse(endpoint).map_err(|e| e.to_string())?;
+    let allow_beta = cfg.updates.allow_beta;
+    let mut builder = app
+        .updater_builder()
+        .version_comparator(move |current, remote| {
+            remote.version > current && (allow_beta || remote.version.pre.is_empty())
+        });
+
+    if cfg.general.proxy.enabled && !cfg.general.proxy.url.trim().is_empty() {
+        let proxy = url::Url::parse(cfg.general.proxy.url.trim()).map_err(|e| e.to_string())?;
+        builder = builder.proxy(proxy);
+    }
+
+    let builder = builder
+        .endpoints(vec![endpoint])
+        .map_err(|e| e.to_string())?;
+    builder.build().map_err(|e| e.to_string())
+}
+
+fn update_channel(version: &str) -> String {
+    if version.contains('-') {
+        "beta".to_string()
+    } else {
+        "stable".to_string()
+    }
+}
+
+fn emit_update_status<R: Runtime>(app: &AppHandle<R>, status: UpdateStatusDto) {
+    let _ = app.emit("translator://update-status", status);
+}
+
+impl UpdateStatusDto {
+    fn checking() -> Self {
+        Self {
+            status: "checking".to_string(),
+            update: None,
+            error: None,
+            downloaded: None,
+            total: None,
+        }
+    }
+
+    fn installing(downloaded: Option<u64>, total: Option<u64>) -> Self {
+        Self {
+            status: "installing".to_string(),
+            update: None,
+            error: None,
+            downloaded,
+            total,
+        }
+    }
+
+    fn failed(error: String) -> Self {
+        Self {
+            status: "failed".to_string(),
+            update: None,
+            error: Some(error),
+            downloaded: None,
+            total: None,
+        }
     }
 }
 
@@ -623,48 +1005,61 @@ fn sync_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), S
 /// Called by the global-shortcut plugin when the registered shortcut is pressed.
 ///
 /// Pipeline:
-/// 1. Read the source selection before the popup can take focus.
-/// 2. Show the popup window at a sensible position (selection → cursor → centered).
-/// 3. Emit a `translator://hotkey-pressed` event with the captured text so the
-///    React popup can translate without re-reading focus-dependent selection.
+/// 1. Read the source selection before the main window can take focus.
+/// 2. If configured and the selection is empty, read clipboard text once.
+/// 3. Show the main window and emit the captured source payload.
 pub async fn on_hotkey<R: Runtime>(app: &AppHandle<R>) {
-    use tauri::{LogicalSize, PhysicalPosition};
-
-    // Lazily build / fetch the platform selection monitor.
     let state = app.state::<Arc<crate::state::AppState>>();
     let monitor = state.selection_monitor().await;
+    let cfg = Config::load().unwrap_or_default();
 
-    let payload = match monitor.get_selected_text().await {
+    let mut payload = match monitor.get_selected_text().await {
         Ok(Some(text)) if !text.trim().is_empty() => HotkeyPayload {
             text: Some(text),
             error: None,
+            source: "selection".to_string(),
         },
         Ok(_) => HotkeyPayload {
             text: None,
-            error: Some("empty".to_string()),
+            error: None,
+            source: "none".to_string(),
+        },
+        Err(SelectionError::Empty) => HotkeyPayload {
+            text: None,
+            error: None,
+            source: "none".to_string(),
         },
         Err(error) => HotkeyPayload {
             text: None,
             error: Some(selection_error_payload(&error)),
+            source: "selection".to_string(),
         },
     };
 
-    let screens = monitor_rects(app);
-    let (x, y) = crate::popup_position::compute_popup_position(monitor.as_ref(), &screens).await;
+    if payload.text.is_none()
+        && payload.error.is_none()
+        && cfg.general.auto_translate_clipboard_on_hotkey
+    {
+        use tauri_plugin_clipboard_manager::ClipboardExt;
 
-    if let Some(win) = app.get_webview_window("popup") {
-        let _ = win.set_size(LogicalSize::new(
-            crate::popup_position::DEFAULT_POPUP_W as f64,
-            crate::popup_position::DEFAULT_POPUP_H as f64,
-        ));
-        let _ = win.set_position(PhysicalPosition::new(x, y));
-        let _ = win.show();
-        let _ = win.set_focus();
-    } else {
-        tracing::warn!("popup window not registered; hotkey is a no-op");
+        match app.clipboard().read_text() {
+            Ok(text) if !text.trim().is_empty() => {
+                payload.text = Some(text);
+                payload.source = "clipboard".to_string();
+            }
+            Ok(_) => {}
+            Err(error) => {
+                payload.error = Some(format!("clipboard:{error}"));
+                payload.source = "clipboard".to_string();
+            }
+        }
     }
 
-    let _ = app.emit("translator://hotkey-pressed", payload);
+    if let Err(error) = show_main_window(app, None) {
+        tracing::warn!(error = %error, "main window not registered; hotkey is a no-op");
+    }
+
+    let _ = app.emit("translator://hotkey-source", payload);
 }
 
 // ---------------------------------------------------------------------------
@@ -693,39 +1088,3 @@ fn selection_error_payload(error: &SelectionError) -> String {
         _ => format!("{}:{}", error.code(), error),
     }
 }
-
-fn monitor_rects<R: Runtime>(app: &AppHandle<R>) -> Vec<Rect> {
-    app.available_monitors()
-        .ok()
-        .map(|monitors| {
-            monitors
-                .into_iter()
-                .map(|monitor| {
-                    let pos = monitor.position();
-                    let size = monitor.size();
-                    Rect {
-                        x: pos.x,
-                        y: pos.y,
-                        width: size.width as i32,
-                        height: size.height as i32,
-                    }
-                })
-                .filter(|rect| rect.width > 0 && rect.height > 0)
-                .collect()
-        })
-        .filter(|rects: &Vec<Rect>| !rects.is_empty())
-        .unwrap_or_else(|| vec![fallback_screen()])
-}
-
-fn fallback_screen() -> Rect {
-    Rect {
-        x: 0,
-        y: 0,
-        width: 1920,
-        height: 1080,
-    }
-}
-
-// `Rect` re-export so the frontend can use it via the generated types.
-#[allow(unused_imports)]
-use Rect as _Rect;

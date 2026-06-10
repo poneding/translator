@@ -94,6 +94,10 @@ jobs:
         working-directory: ui
         run: npm run typecheck
 
+      - name: Check locales
+        working-directory: ui
+        run: npm run locales:check
+
       - name: Lint
         working-directory: ui
         run: npm run lint

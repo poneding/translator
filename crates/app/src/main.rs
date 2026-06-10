@@ -1,13 +1,12 @@
 //! translator-app: Tauri shell.
 //!
-//! Owns the global hotkey, system tray, popup window, and IPC bridge to the
+//! Owns the global hotkey, system tray, main window, and IPC bridge to the
 //! `core` (translation) and `platform` (selection monitor) crates.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
 mod permissions;
-mod popup_position;
 mod state;
 mod tray;
 
@@ -40,6 +39,7 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -101,9 +101,17 @@ fn main() {
                 }
             }
 
-            // Hide the popup on launch; main owns the integrated settings view.
-            if let Some(win) = app.get_webview_window("popup") {
-                let _ = win.hide();
+            if let Some(win) = app.get_webview_window("main") {
+                if let Err(e) = commands::prepare_main_window(app.handle(), &win, &cfg) {
+                    tracing::warn!(error = %e, "could not prepare main window");
+                }
+            }
+
+            if cfg.updates.check_on_startup {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    commands::run_startup_update_check(app_handle).await;
+                });
             }
 
             Ok(())
@@ -111,10 +119,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_selected_text,
             commands::translate_text,
-            commands::show_popup,
-            commands::hide_popup,
+            commands::translate_service,
+            commands::get_text_audio_url,
             commands::open_main_window,
             commands::open_settings,
+            commands::set_main_window_always_on_top,
             commands::open_external_url,
             commands::get_config,
             commands::save_config,
@@ -128,6 +137,8 @@ fn main() {
             commands::read_clipboard,
             commands::check_permission,
             commands::open_permission_settings,
+            commands::check_update,
+            commands::download_and_install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

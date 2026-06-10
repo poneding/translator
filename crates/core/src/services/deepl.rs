@@ -128,11 +128,15 @@ impl DeepLService {
         Ok(TranslateResult {
             service_id: ServiceId::DeepL,
             service_name: "DeepL".to_string(),
+            from: req.from.clone(),
+            to: req.to.clone(),
             text: first.text,
             audio_url: None,
             detected_source: first.detected_source_language,
             elapsed_ms,
             dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
             extra: None,
         })
     }
@@ -210,11 +214,15 @@ impl DeepLService {
         Ok(TranslateResult {
             service_id: ServiceId::DeepL,
             service_name: "DeepL".to_string(),
+            from: req.from.clone(),
+            to: req.to.clone(),
             text,
             audio_url: None,
             detected_source: result.lang,
             elapsed_ms: started.elapsed().as_millis() as u64,
             dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
             extra: None,
         })
     }

@@ -1,39 +1,72 @@
-// BH-13.x: minimal Fluent-backed i18n for the React UI.
-//
-// - Loads en.ftl + zh-Hans.ftl at module init via Vite's ?raw imports.
-// - Selects the bundle based on navigator.language:
-//   - starts with "zh-Hans" or "zh-CN" → zh-Hans
-//   - anything else → en (default per SPEC §3.13 BH-13.1)
-// - No runtime switcher in v0.1.0 (SPEC §3.13 BH-13.3).
-// - All user-facing strings live in locales/{en,zh-Hans}.ftl; the Rust
-//   backend has no user-facing strings (SPEC §3.13 BH-13.4).
-//
-// The API is intentionally tiny: `useT()` returns a `t(key, args?)` function
-// scoped to the current locale. Components that want a hardcoded fallback
-// (so the UI is still readable if a key is missing) call `t(key, args, fallback)`.
+// Fluent-backed i18n for the React UI.
 
-import { FluentBundle, FluentResource, type FluentVariable } from "@fluent/bundle";
+import {
+  FluentBundle,
+  FluentResource,
+  type FluentVariable,
+} from "@fluent/bundle";
+import { useCallback, useSyncExternalStore } from "react";
+import {
+  normalizeAppLanguage,
+  type AppLanguageCode,
+  type CommonLanguageCode,
+} from "./languages";
+import arSource from "../locales/ar.ftl?raw";
+import deSource from "../locales/de.ftl?raw";
 import enSource from "../locales/en.ftl?raw";
+import esSource from "../locales/es.ftl?raw";
+import frSource from "../locales/fr.ftl?raw";
+import itSource from "../locales/it.ftl?raw";
+import jaSource from "../locales/ja.ftl?raw";
+import koSource from "../locales/ko.ftl?raw";
+import ptSource from "../locales/pt.ftl?raw";
+import ruSource from "../locales/ru.ftl?raw";
 import zhHansSource from "../locales/zh-Hans.ftl?raw";
+import zhHantSource from "../locales/zh-Hant.ftl?raw";
 
-const SUPPORTED = ["en", "zh-Hans"] as const;
-type SupportedLocale = (typeof SUPPORTED)[number];
+const SUPPORTED: readonly CommonLanguageCode[] = [
+  "en",
+  "zh-Hans",
+  "zh-Hant",
+  "ja",
+  "ko",
+  "fr",
+  "de",
+  "es",
+  "ru",
+  "pt",
+  "it",
+  "ar",
+];
+
+type SupportedLocale = CommonLanguageCode;
+
+const localeSources: Record<SupportedLocale, string> = {
+  ar: arSource,
+  de: deSource,
+  en: enSource,
+  es: esSource,
+  fr: frSource,
+  it: itSource,
+  ja: jaSource,
+  ko: koSource,
+  pt: ptSource,
+  ru: ruSource,
+  "zh-Hans": zhHansSource,
+  "zh-Hant": zhHantSource,
+};
 
 function detectLocale(): SupportedLocale {
   // navigator.language is a BCP-47 tag like "en-US" or "zh-Hans-CN".
-  // SPEC §3.13 BH-13.2: switch to Simplified Chinese when the OS locale
-  // starts with "zh-Hans" or "zh-CN".
   const raw = (typeof navigator !== "undefined" && navigator.language) || "en";
-  const lower = raw.toLowerCase();
-  if (lower.startsWith("zh-hans") || lower.startsWith("zh-cn")) return "zh-Hans";
-  return "en";
+  const normalized = normalizeAppLanguage(raw);
+  return normalized === "system" ? "en" : normalized;
 }
 
 const bundles: Record<SupportedLocale, FluentBundle> = (() => {
   const result = {} as Record<SupportedLocale, FluentBundle>;
   for (const loc of SUPPORTED) {
-    const source = loc === "en" ? enSource : zhHansSource;
-    const resource = new FluentResource(source);
+    const resource = new FluentResource(localeSources[loc]);
     const bundle = new FluentBundle(loc);
     const errors = bundle.addResource(resource);
     if (errors.length > 0) {
@@ -46,14 +79,39 @@ const bundles: Record<SupportedLocale, FluentBundle> = (() => {
   return result;
 })();
 
+const listeners = new Set<() => void>();
+let configuredLocale: AppLanguageCode = "system";
 let currentLocale: SupportedLocale = detectLocale();
+
+function resolveLocale(locale: AppLanguageCode): SupportedLocale {
+  return locale === "system" ? detectLocale() : locale;
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function emitChange() {
+  for (const listener of listeners) listener();
+}
+
+export function getConfiguredLocale(): AppLanguageCode {
+  return configuredLocale;
+}
 
 export function getLocale(): SupportedLocale {
   return currentLocale;
 }
 
-export function setLocale(loc: SupportedLocale): void {
-  if (SUPPORTED.includes(loc)) currentLocale = loc;
+export function setLocale(loc: AppLanguageCode): void {
+  const nextConfigured = normalizeAppLanguage(loc);
+  const nextResolved = resolveLocale(nextConfigured);
+  if (configuredLocale === nextConfigured && currentLocale === nextResolved)
+    return;
+  configuredLocale = nextConfigured;
+  currentLocale = nextResolved;
+  emitChange();
 }
 
 export function translate(
@@ -67,21 +125,27 @@ export function translate(
     return bundle.formatPattern(msg.value, args ?? undefined);
   }
   // Fall back to the other locale before showing a raw key.
-  const other = currentLocale === "en" ? "zh-Hans" : "en";
-  const otherMsg = bundles[other].getMessage(key);
-  if (otherMsg && otherMsg.value) {
-    return bundles[other].formatPattern(otherMsg.value, args ?? undefined);
+  for (const other of ["en", "zh-Hans"] as const) {
+    if (other === currentLocale) continue;
+    const otherMsg = bundles[other].getMessage(key);
+    if (otherMsg && otherMsg.value) {
+      return bundles[other].formatPattern(otherMsg.value, args ?? undefined);
+    }
   }
   return fallback ?? key;
 }
 
-// Lightweight React hook. Re-renders the caller when the locale changes
-// (locale is module-singleton in v0.1.0, so this is effectively a no-op
-// today, but it future-proofs the API for the v0.2 runtime switcher).
 export function useT() {
-  return (
-    key: string,
-    args?: Record<string, FluentVariable> | null,
-    fallback?: string,
-  ) => translate(key, args, fallback);
+  const locale = useSyncExternalStore(subscribe, getLocale, getLocale);
+  return useCallback(
+    (
+      key: string,
+      args?: Record<string, FluentVariable> | null,
+      fallback?: string,
+    ) => {
+      void locale;
+      return translate(key, args, fallback);
+    },
+    [locale],
+  );
 }
