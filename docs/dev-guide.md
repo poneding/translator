@@ -100,6 +100,7 @@ The app uses the official `tauri-plugin-updater`.
   `plugins.updater.pubkey`; never commit the private key.
 - Store the private key in GitHub Actions as `TAURI_SIGNING_PRIVATE_KEY` and
   the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- Enable `bundle.createUpdaterArtifacts` only after those secrets are present.
 - Stable checks use
   `https://github.com/poneding/translator/releases/latest/download/latest.json`.
 - Beta checks use the `beta` release/tag manifest URL configured in
