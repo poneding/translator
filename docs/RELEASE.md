@@ -12,11 +12,13 @@
    git-cliff, commits the changelog update, creates the tag, and pushes after
    confirmation.
 4. The `.github/workflows/release.yml` workflow fires on the `v*` tag, builds
-   on macOS (universal), Ubuntu 22.04, and Windows, and produces a draft
-   GitHub Release with the following artifacts:
-   - `translator_X.Y.Z_universal.dmg` + `translator.app.tar.gz` (macOS)
+   on Ubuntu 22.04, Ubuntu 24.04 ARM, Windows x64, and Windows ARM64, and
+   produces a draft GitHub Release with the following artifacts:
    - `translator_X.Y.Z_amd64.AppImage` + `translator_X.Y.Z_amd64.deb` (Linux)
+   - `translator_X.Y.Z_arm64.AppImage` + `translator_X.Y.Z_arm64.deb` (Linux ARM64)
    - `translator_X.Y.Z_x64_en-US.msi` + `translator_X.Y.Z_x64-setup.exe` (Windows)
+   - macOS artifacts are temporarily excluded from v0.2.0 automation until
+     the macOS CI/build failure is fixed.
    - Tauri updater archives, signatures, and manifest assets only after
      updater signing is configured and `bundle.createUpdaterArtifacts` is
      enabled.
