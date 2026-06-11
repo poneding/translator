@@ -1,6 +1,6 @@
 //! Linux [`SelectionMonitor`] implementation.
 //!
-//! Uses AT-SPI2 via the `atspi` crate over D-Bus (via `zbus`). See DESIGN.md §6.1.
+//! Uses AT-SPI2 via the `atspi` crate over D-Bus (via `zbus`). See docs/DESIGN.md.
 //!
 //! Pipeline:
 //! 1. Connect to the session D-Bus.

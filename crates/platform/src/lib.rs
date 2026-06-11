@@ -1,7 +1,7 @@
 //! translator-platform: cross-platform OS integration.
 //!
 //! Currently provides [`SelectionMonitor`]: read the user's currently
-//! selected text and (when possible) its on-screen position.
+//! selected text and handle platform permission helpers.
 //!
 //! The factory [`create`] returns a platform-appropriate implementation.
 
@@ -10,8 +10,6 @@
 use async_trait::async_trait;
 use serde::Serialize;
 use thiserror::Error;
-
-pub mod position;
 
 #[cfg(target_os = "linux")]
 pub mod linux;

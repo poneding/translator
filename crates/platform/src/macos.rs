@@ -3,7 +3,7 @@
 //! Uses AppKit's Accessibility (AX) framework via `accessibility-sys` 0.2 +
 //! `core-foundation` 0.10 for safe CFString handling.
 //!
-//! ## Implementation notes (DESIGN.md §6.1)
+//! ## Implementation notes
 //!
 //! 1. `AXUIElementCreateSystemWide()` → system-wide AX element.
 //! 2. `kAXFocusedUIElementAttribute` → currently focused UI element.
@@ -184,8 +184,8 @@ impl SelectionMonitor for MacOSSelection {
             // CGRect (4 × f32). This is a documented layout from Apple's
             // AXValue.h, but the proper way is to use the AXValueGetValue C
             // function. We bind it below.
-            // For now, return Ok(None) — selection_bounds is optional; the
-            // popup falls back to cursor position.
+            // For now, return Ok(None). The v0.2 main-window flow no longer
+            // uses selection coordinates.
             Ok(None)
         }
     }

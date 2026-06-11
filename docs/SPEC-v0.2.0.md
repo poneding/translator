@@ -23,7 +23,9 @@ manage updates, languages, services, and appearance from one integrated UI.
 - Hotkey translation reads selected text first; when configured, it falls back to clipboard text.
 - Main window supports pin/always-on-top and Escape-to-close.
 - Source editor is redesigned with an always-visible bottom action row.
-- Source and target language controls use a shared language registry with language names and flag markers.
+- Source and target language controls use a shared language registry. The compact
+  main direction row shows short codes only; dropdown options show language name
+  plus short code.
 - Result cards have compact one-line service headers and per-service retry buttons.
 - Audio controls distinguish source-text speech from translated-text speech.
 - Settings adds an Update section with startup auto-check, beta update eligibility, and manual check.
@@ -59,8 +61,7 @@ manage updates, languages, services, and appearance from one integrated UI.
 | UC-3 | User presses global hotkey with no usable text | Main window opens without translation and shows an empty source state. |
 | UC-4 | User clicks Pin | Main window toggles always-on-top and the icon state reflects it. |
 | UC-5 | User changes target language in the source editor toolbar | Future translations use the selected target language immediately. |
-| UC-6 | User clicks all-services refresh | All enabled services re-run for the current source text. |
-| UC-7 | User hovers a service result and clicks its refresh button | Only that service re-runs and only that result card updates. |
+| UC-6 | User hovers a service result and clicks its refresh button | Only that service re-runs and only that result card updates. |
 | UC-8 | User clicks source audio | Source text is spoken in the source/detected language. |
 | UC-9 | User clicks result audio | Translated text is spoken in the target language. |
 | UC-10 | User opens Settings -> Update and checks manually | App shows checking, no-update, update-available, or error state. |
@@ -103,10 +104,10 @@ manage updates, languages, services, and appearance from one integrated UI.
 | BH-3.1 | The source editor height grows with text content from a minimum height to a bounded maximum height; after the maximum, text scrolls inside the editor. |
 | BH-3.2 | The source editor has an always-visible bottom toolbar row inside the editor container. Text never overlaps or hides behind the toolbar. |
 | BH-3.3 | Source toolbar left side contains ghost buttons: Play source audio, Copy source text. |
-| BH-3.4 | Source toolbar center shows `source language => target language`. Source language is fixed to Auto Detect and is not editable. Target language is a dropdown. |
+| BH-3.4 | The language direction row below the source editor shows `source short code => target short code`. Source language is derived from detection or Auto Detect and is not editable. Target language is a dropdown. |
 | BH-3.5 | Source toolbar right side contains Clear and Translate controls. Clear is ghost-style; Translate is the primary command. |
 | BH-3.6 | Play, Copy, Clear, Translate are disabled when their required source text is empty. |
-| BH-3.7 | Manual edits to source text clear stale errors but do not automatically translate until Translate, global hotkey, all-services refresh, or service refresh is invoked. |
+| BH-3.7 | Manual edits to source text clear stale errors but do not automatically translate until Translate, global hotkey, or service refresh is invoked. |
 
 ### 3.4 Language registry and dropdowns
 
@@ -114,19 +115,19 @@ manage updates, languages, services, and appearance from one integrated UI.
 | --- | --- |
 | BH-4.1 | App uses one shared language registry for translation language controls and app-language controls. |
 | BH-4.2 | Common translation languages are: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, French, German, Spanish, Russian, Portuguese, Italian, Arabic. |
-| BH-4.3 | Source/target dropdown options show a language display name and a flag marker. Auto Detect uses a neutral globe/language marker instead of a national flag. |
-| BH-4.4 | Suggested flag mapping is: en=US flag, zh-Hans=CN flag, zh-Hant=TW flag, ja=JP flag, ko=KR flag, fr=FR flag, de=DE flag, es=ES flag, ru=RU flag, pt=PT flag, it=IT flag, ar=SA flag. |
-| BH-4.5 | Flags are visual markers only; the canonical persisted value is still a BCP-47-style language code. |
+| BH-4.3 | Main source/target direction controls show short codes in the compact row. Dropdown options show language display name and short code. |
+| BH-4.4 | Flag markers may be used in settings/app-language controls as visual markers only; the canonical persisted value is still a BCP-47-style language code. |
+| BH-4.5 | The compact main direction row does not show flags. |
 | BH-4.6 | Unknown/custom BCP-47 values remain supported in General settings but are not shown in the compact main toolbar unless currently selected. |
 
 ### 3.5 Main status row and translation dispatch
 
 | ID | Behavior |
 | --- | --- |
-| BH-5.1 | Below the source editor, the left side shows "N services enabled" and the enabled service logo group in priority order. |
-| BH-5.2 | Below the source editor, the right side shows a ghost Refresh button that re-runs all enabled services. |
-| BH-5.3 | All-services refresh uses the current source text and target language and replaces all current outcomes with pending rows. |
-| BH-5.4 | Empty source text prevents refresh and shows the same empty-source validation used by Translate. |
+| BH-5.1 | Below the source editor, the left side shows source short code -> target short-code dropdown. |
+| BH-5.2 | Below the source editor, the right side shows "N services enabled" and the enabled service logo group in priority order. |
+| BH-5.3 | Translate uses the current source text and target language and replaces all current outcomes with pending rows. |
+| BH-5.4 | Empty source text prevents translation and shows empty-source validation. |
 | BH-5.5 | Services remain dispatched in configured priority order and independently succeed/fail. |
 | BH-5.6 | A service with missing credentials is skipped according to the existing service policy. |
 
@@ -207,7 +208,9 @@ manage updates, languages, services, and appearance from one integrated UI.
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace --all-features` pass.
 - `npm run typecheck`, `npm run lint`, and `npm run build` pass.
 - `actionlint .github/workflows/*.yml` passes.
-- Manual QA confirms hotkey selection, clipboard fallback, pin, Escape close, language switching, update check, all-services refresh, per-service refresh, source audio, result audio, and ghost copy/play controls.
+- Manual QA confirms hotkey selection, clipboard fallback, pin, Escape close,
+  language switching, update check, per-service refresh, source audio, result
+  audio, and ghost copy/play controls.
 - Release workflow produces updater artifacts required by the configured updater endpoint.
 
 ---

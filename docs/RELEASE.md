@@ -1,7 +1,10 @@
-# Release Process (translator v0.1.0+)
+# Release Process
 
-> Status: v0.1.0 ships **unsigned** on all three platforms.
-> Code-signing infrastructure is a v0.2.0 deliverable (see SPEC §3 and PLAN §2 M5.5/M5.6).
+> Current release line: v0.2.0.
+>
+> Tauri updater artifacts are generated and signed during release builds.
+> Platform installer/app code signing is still a future hardening task; current
+> artifacts may still show operating-system trust prompts.
 
 ## 1. Cutting a release
 
@@ -28,13 +31,13 @@ The release workflow checks out full git history and uses
 Release. Local changelog generation uses `scripts/changelog.sh`, which prefers
 a local `git-cliff` binary and falls back to Docker.
 
-## 2. Code signing — macOS (M5.5)
+## 2. Code signing — macOS
 
-**v0.1.0**: ad-hoc signed only. First launch shows the standard
+Current status: ad-hoc signed only. First launch shows the standard
 "unidentified developer" Gatekeeper prompt; users must right-click → Open
 the first time. Documented in `docs/user-guide.md`.
 
-**v0.2.0 plan**:
+Future plan:
 - Provision an Apple Developer ID Application certificate.
 - Store the cert + `.p12` password in GitHub Actions secrets:
   - `APPLE_CERT_P12_BASE64` — base64 of the `.p12`
@@ -44,12 +47,12 @@ the first time. Documented in `docs/user-guide.md`.
 - Add the `tauri-apps/tauri-action` notarization step in `release.yml`.
 - Add a notarize hook in `tauri.conf.json` `bundle.macOS.entitlements` / `exceptionDomain`.
 
-## 3. Code signing — Windows (M5.6)
+## 3. Code signing — Windows
 
-**v0.1.0**: unsigned. SmartScreen shows the "Windows protected your PC"
+Current status: unsigned. SmartScreen shows the "Windows protected your PC"
 blue dialog; users must click "More info" → "Run anyway".
 
-**v0.2.0 plan**:
+Future plan:
 - Acquire an EV Code Signing Certificate (required for SmartScreen
   reputation in 2026).
 - Store the cert in GitHub Actions secrets as `WINDOWS_CERT_PFX_BASE64`
@@ -58,12 +61,12 @@ blue dialog; users must click "More info" → "Run anyway".
 - Tauri Action has built-in Windows signing support — set the env vars
   and add `signCommand` in `tauri.conf.json` `bundle.windows.signCommand`.
 
-## 4. Code signing — Linux (M5.7)
+## 4. Code signing — Linux
 
-**v0.1.0**: not signed. Ubuntu users see the standard "install untrusted
+Current status: not signed. Ubuntu users see the standard "install untrusted
 package" prompt. Fedora/RHEL users need to install from the AppImage.
 
-**v0.2.0 plan**:
+Future plan:
 - Generate a GPG key pair: `gpg --full-gen-key`.
 - Sign the `.deb` with `dpkg-sig --sign builder translator_X.Y.Z_amd64.deb`.
 - Sign the AppImage with `gpg --detach-sign --armor` and distribute the

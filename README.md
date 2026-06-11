@@ -1,6 +1,6 @@
 # translator
 
-> Cross-platform select-and-translate tool. Pick text anywhere → press a hotkey → translations appear in a floating popup.
+> Cross-platform select-and-translate tool. Pick text anywhere -> press a hotkey -> translate in the main window.
 
 Built with **Rust + Tauri 2 + React**. Supports macOS, Windows, and Linux.
 
@@ -9,10 +9,12 @@ Built with **Rust + Tauri 2 + React**. Supports macOS, Windows, and Linux.
 - Global hotkey to translate selected text from any app
 - 5 translation services: **Youdao (有道)**, **DeepL**, **Google**, **Bing (Azure)**, **OpenAI-compatible** (OpenAI, DeepSeek, Zhipu, Ollama, OpenRouter, …)
 - Auto language detection
-- Floating popup that follows the cursor
+- Main-window translation flow with pin, history, source/result audio, and per-service retry
+- Clipboard fallback on hotkey when enabled
+- Built-in update checks with stable/beta eligibility
 - System tray / menubar for quick access
 - Dark mode follows system
-- English + Simplified Chinese UI
+- 12 UI locales with live app-language switching
 - Secure API key storage in OS Keychain
 - ~6 MB binary, < 50 MB memory
 
@@ -50,7 +52,7 @@ Outputs to `target/release/bundle/`:
 
 ## Documentation
 
-- 📐 **[Design document](docs/DESIGN.md)** — architecture, service specs, platform integration, roadmap
+- 📐 **[Design document](docs/DESIGN.md)** — current v0.2 architecture
 - 🏛️ **[Architecture diagram](docs/ARCHITECTURE.svg)** — visual overview
 - 🛠️ **[Dev guide](docs/dev-guide.md)** — coding conventions, testing, debugging
 - 👤 **[User guide](docs/user-guide.md)** — setup, API keys, hotkey customization
@@ -63,8 +65,8 @@ translator/
 │   ├── core/         # Pure-Rust business logic + 5 translation services
 │   ├── platform/     # Cross-platform selection monitor (macOS/Win/Linux)
 │   └── app/          # Tauri shell (commands, tray, IPC)
-├── ui/               # React + Vite frontend (popup + settings windows)
-├── locales/          # Fluent i18n files (en, zh-Hans)
+├── ui/               # React + Vite frontend (main window + integrated settings)
+├── ui/src/locales/   # Fluent i18n files (12 app languages)
 ├── docs/             # Design + user/dev guides
 └── .github/          # CI + release workflows
 ```
@@ -75,4 +77,4 @@ GPL-3.0-only. See [LICENSE](LICENSE).
 
 ## Status
 
-Pre-alpha. Currently designing and building Spike 0 (see `docs/DESIGN.md` §11).
+v0.2.0 release candidate work is on `dev`.

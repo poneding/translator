@@ -47,9 +47,10 @@ the hotkey is pressed; it does not monitor the clipboard continuously.
 - **Pin** in the titlebar keeps the translator window always on top and
   persists across restarts.
 - The source editor grows with your text. Its bottom toolbar always contains
-  source audio, copy, `Auto -> target language`, clear, and translate.
-- The row below the editor shows enabled services and a refresh button for
-  re-running all services.
+  source audio, copy, clear, and translate.
+- The row below the editor shows the detected source short code, the target
+  language short-code dropdown, and the enabled service count with service
+  logos.
 - Each result card has its own refresh button on hover/focus, so one service
   can be retried without replacing the others.
 - Source audio speaks the source text. Result audio speaks the translated text.

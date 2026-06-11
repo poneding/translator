@@ -46,21 +46,21 @@ main-refresh-all = 重新翻译
 main-refresh-service = 刷新此服务
 main-error-clipboard = 无法读取剪贴板：{ $msg }
 
-# Popup
-popup-title = 翻译
-popup-loading = 翻译中…
-popup-empty = 未选中文字
-popup-permission-denied = Translator 需要获取「辅助功能」权限
-popup-open-settings = 打开设置
-popup-copy = 复制
-popup-copied = 已复制
-popup-retry = 重试
-popup-close = 关闭
-popup-source = 原文:
-popup-detected = 检测到：{ $lang }
-popup-truncated = 已截断选择：保留 { $kept } / { $original } 字符（10 万字符上限）。
-popup-no-services-enabled = 尚未启用任何服务。请打开设置启用至少一个。
-popup-play-audio = 播放发音
+# Main window shared strings
+main-window-title = 翻译
+main-window-loading = 翻译中…
+main-window-empty-selection = 未选中文字
+main-permission-denied = Translator 需要获取「辅助功能」权限
+common-open-settings = 打开设置
+common-copy = 复制
+common-copied = 已复制
+main-retry = 重试
+common-close = 关闭
+main-source-label = 原文:
+main-detected-language = 检测到：{ $lang }
+main-selection-truncated = 已截断选择：保留 { $kept } / { $original } 字符（10 万字符上限）。
+main-no-services-enabled = 尚未启用任何服务。请打开设置启用至少一个。
+main-play-audio = 播放发音
 
 # Common errors
 error-network = 网络错误

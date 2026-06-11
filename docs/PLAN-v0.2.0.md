@@ -106,11 +106,11 @@ Total: roughly 12-19 focused engineering days depending on updater signing and l
 | # | Task | Files | Notes |
 | --- | --- | --- | --- |
 | 3.1 | Build auto-resizing source editor shell. | `ui/src/App.tsx`, optional `ui/src/components/SourceEditor.tsx`, `ui/src/app.css` | Min/max height, internal scroll after max, bottom padding for toolbar. |
-| 3.2 | Add always-visible source toolbar. | same | Left: Play/Copy ghost. Center: Auto Detect => target dropdown. Right: Clear ghost + Translate primary. |
-| 3.3 | Convert target language dropdown to flag/name rendering. | `Combobox` or new `LanguageSelect` | Must fit min width and be keyboard accessible. |
-| 3.4 | Remove standalone top source/target controls. | `ui/src/App.tsx` | Source is fixed auto-detect in toolbar. |
-| 3.5 | Add below-editor service status row. | `ui/src/App.tsx`, `ui/src/services/ServiceLogo.tsx` | Left service count + icon group; right all-services refresh ghost. |
-| 3.6 | Implement all-services refresh. | `ui/src/App.tsx` | Reuse current source/target and reset all outcomes to pending. |
+| 3.2 | Add always-visible source toolbar. | same | Left: Play/Copy ghost. Right: Clear secondary + Translate primary. |
+| 3.3 | Convert target language dropdown to compact short-code rendering. | `Combobox` or new `LanguageSelect` | Selected control shows short code; options show language name + short code and fit min width. |
+| 3.4 | Remove standalone top source/target controls. | `ui/src/App.tsx` | Source is fixed auto-detect/detected and shown in the below-editor direction row. |
+| 3.5 | Add below-editor language/service status row. | `ui/src/App.tsx`, `ui/src/services/ServiceLogo.tsx` | Left source -> target short-code direction; right service count + icon group. |
+| 3.6 | Keep refresh scoped to individual services. | `ui/src/App.tsx` | The all-services refresh button was removed by product decision; Translate re-runs all services. |
 | 3.7 | Add single-service translation command. | `crates/app/src/commands.rs`, `crates/core/src/translator.rs`, `ui/src/ipc/commands.ts` | `translate_service({ service_id, text, from, to, request_id })` should return one outcome. |
 | 3.8 | Implement per-service hover/focus refresh. | `ui/src/App.tsx`, `app.css` | Hidden until hover/focus; keyboard reachable. |
 | 3.9 | Add per-service stale response protection. | `ui/src/App.tsx` | Track request id per service, not only global request id. |
@@ -216,9 +216,9 @@ Manual QA matrix:
 - Pin toggles always-on-top and persists.
 - Escape hides main window.
 - Source editor autoresizes and toolbar remains visible.
-- Target language dropdown with flags works.
+- Target language direction dropdown shows short code when closed and language
+  name + short code when open.
 - App Language changes UI without restart.
-- All-services refresh.
 - Per-service refresh.
 - Source/result/dictionary audio semantics.
 - Update manual check: no update, update available, failure.
@@ -233,7 +233,7 @@ Manual QA matrix:
 | D-1 | Should `check_on_startup` default on? | Yes, because it is asynchronous and non-blocking. |
 | D-2 | Should Pin persist? | Yes, users expect always-on-top preference to survive restart. |
 | D-3 | Should clipboard fallback auto-translate by default? | No, default off for privacy and surprise minimization. |
-| D-4 | Which flag should represent English and Arabic? | en=US, ar=SA as visual defaults; flags are display markers only. |
+| D-4 | Should main source/target direction show flags? | No; compact row uses short codes only. Flags may remain in app-language/settings controls. |
 | D-5 | Should result audio exist for services that do not provide TTS? | Yes via shared TTS helper when possible; otherwise hide the Play button. |
 | D-6 | Should updater install automatically after download? | No, require explicit user confirmation. |
 

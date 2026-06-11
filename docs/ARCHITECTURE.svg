@@ -58,18 +58,18 @@
   <!-- ===== Layer 2: UI (React) ===== -->
   <text x="40" y="186" class="layer-label">Frontend — React + Vite + Tailwind</text>
   <rect x="40" y="196" width="200" height="56" rx="6" class="box"/>
-  <text x="60" y="218" class="node-title">Popup window</text>
-  <text x="60" y="235" class="node-sub">floating, transparent, on-top</text>
-  <text x="60" y="247" class="node-sub">shows results + copy/retry</text>
+  <text x="60" y="218" class="node-title">Main window</text>
+  <text x="60" y="235" class="node-sub">source editor + results</text>
+  <text x="60" y="247" class="node-sub">pin, history, settings</text>
 
   <rect x="260" y="196" width="200" height="56" rx="6" class="box"/>
-  <text x="280" y="218" class="node-title">Settings window</text>
-  <text x="280" y="235" class="node-sub">5 sections: General, Services,</text>
-  <text x="280" y="247" class="node-sub">Hotkey, Appearance, About</text>
+  <text x="280" y="218" class="node-title">Integrated settings</text>
+  <text x="280" y="235" class="node-sub">General, Services, Hotkey,</text>
+  <text x="280" y="247" class="node-sub">Appearance, Update, Proxy, About</text>
 
   <rect x="480" y="196" width="200" height="56" rx="6" class="box"/>
   <text x="500" y="218" class="node-title">i18n (Fluent)</text>
-  <text x="500" y="235" class="node-sub">en.ftl + zh-Hans.ftl</text>
+  <text x="500" y="235" class="node-sub">12 Fluent locale files</text>
   <text x="500" y="247" class="node-sub">runtime locale switch</text>
 
   <rect x="700" y="196" width="200" height="56" rx="6" class="box"/>
@@ -94,7 +94,7 @@
 
   <rect x="660" y="316" width="220" height="40" rx="4" class="box-tauri"/>
   <text x="678" y="333" class="node-title">Window / system</text>
-  <text x="678" y="350" class="node-sub">show_popup · copy_to_clipboard</text>
+  <text x="678" y="350" class="node-sub">open_main_window · copy_to_clipboard</text>
 
   <rect x="60" y="366" width="200" height="32" rx="4" class="box-tauri"/>
   <text x="78" y="386" class="node-sub">State, Tray, Permissions, Global hotkey</text>
@@ -137,7 +137,7 @@
   <text x="40" y="608" class="layer-label">Platform glue — crates/platform</text>
   <rect x="40" y="618" width="540" height="80" rx="8" class="layer-bg"/>
   <rect x="60" y="628" width="500" height="60" rx="4" class="box-plat"/>
-  <text x="78" y="647" class="node-title">SelectionMonitor trait  ·  get_selected_text / selection_bounds / cursor_position / permission</text>
+  <text x="78" y="647" class="node-title">SelectionMonitor trait  ·  get_selected_text / permission helpers</text>
   <text x="78" y="664" class="node-sub">macOS  (accessibility-sys + AXUIElement)</text>
   <text x="78" y="678" class="node-sub">Windows  (windows crate + UI_UIAutomation)   ·   Linux  (atspi + zbus over D-Bus)</text>
 
@@ -154,11 +154,11 @@
   <text x="778" y="678" class="node-sub">Google · Bing · OpenAI</text>
 
   <!-- ===== Arrows: hotkey path ===== -->
-  <!-- User → Popup (via hotkey) -->
+  <!-- User -> Main window (via hotkey) -->
   <line x1="140" y1="152" x2="140" y2="194" class="arrow-data" marker-end="url(#arrow-blue)"/>
   <text x="148" y="178" class="label">hotkey</text>
 
-  <!-- Popup → Tauri IPC (commands) -->
+  <!-- Main window -> Tauri IPC (commands) -->
   <line x1="140" y1="252" x2="140" y2="316" class="arrow-data" marker-end="url(#arrow-blue)"/>
 
   <!-- Tauri IPC → Core -->

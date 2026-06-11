@@ -35,10 +35,11 @@ We follow the standard Rust style guide and the React/TS conventions in the sour
 2. Add a variant to `ServiceId` in `crates/core/src/model.rs` and to `ServiceId::all()`.
 3. Add a default row to `Config::default()` for the new id in `crates/core/src/config.rs`.
 4. Register the service in `Translator::new()` in `crates/core/src/translator.rs`.
-5. Add an icon (`crates/app/icons/service-icon/<id>.png`) — 64×64 transparent PNG.
+5. Add an icon (`ui/public/service-icons/<id>.png`) — 64×64 transparent PNG.
 6. Add a row in `ServicesSection.tsx` with the matching `ServiceMeta`.
 7. Write unit tests using `wiremock` to mock the upstream HTTP responses.
-8. Add the service to `docs/DESIGN.md §4.2`.
+8. Update service metadata/docs where relevant (`ui/src/services/serviceMeta.ts`
+   and user-facing documentation).
 
 ## Project layout
 
@@ -85,11 +86,13 @@ cargo test -p translator-core --lib services::
 1. Bump `version` in the root `Cargo.toml` `[workspace.package]`.
 2. Run `./scripts/changelog.sh preview` to inspect the git-cliff release
    notes for unreleased commits.
-3. Run `./release.sh v0.1.0`; it regenerates `CHANGELOG.md`, commits the
+3. Run `./release.sh vX.Y.Z`; it regenerates `CHANGELOG.md`, commits the
    changelog update, creates the tag, and pushes after confirmation.
-4. The `release.yml` workflow builds `.dmg` / `.msi` / `.AppImage` / `.deb`
-   artifacts and opens a draft GitHub release with git-cliff notes attached.
-5. Manually verify the draft artifacts and notes, then publish.
+4. The `release.yml` workflow builds macOS universal, Linux x64/ARM64, and
+   Windows x64/ARM64 artifacts, creates signed updater assets, and opens a
+   draft GitHub release with git-cliff notes attached.
+5. Manually verify the draft artifacts, updater manifest/signatures, and notes,
+   then publish.
 
 ## Updater development
 

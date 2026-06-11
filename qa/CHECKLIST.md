@@ -12,8 +12,9 @@ per-platform run file.
 - [ ] Install the bundle (`.dmg`/`.msi`/`.AppImage`/`.deb`) and launch it.
 - [ ] Confirm the **tray icon** is visible (menu bar on macOS, system tray on
   Windows/Linux).
-- [ ] Open the **Settings** window from the tray menu. The window is
-  resizable, min 720×480, default 880×640. (BH-7.3)
+- [ ] Open **Settings** from the tray menu. Settings opens inside the main
+  window; the window starts at the compact width, has a maximum width, and has
+  no maximize control.
 
 ## Configuration
 
@@ -52,9 +53,9 @@ per-platform run file.
 - [ ] **Escape** hides the main window while the tray process stays alive.
 - [ ] The source editor grows with content and its bottom toolbar remains
   visible without overlapping text.
-- [ ] The target language dropdown shows flag + language and changes future
-  translations immediately.
-- [ ] The all-services refresh button re-runs every enabled service.
+- [ ] The language direction row shows source short code -> target short-code
+  dropdown below the source editor; dropdown options show language name plus
+  short code.
 - [ ] Hover/focus a result card and click its refresh button; only that card
   refreshes.
 - [ ] Result card headers are one compact line with a small service logo and
@@ -91,8 +92,8 @@ For each enabled service, with a real API key configured:
 - [ ] **Service returns 429**: tab shows "Rate limited". (SPEC §5)
 - [ ] **Service times out (>8 s)**: tab shows "Translation timed out".
   (SPEC §5, BH-4.2)
-- [ ] **All services fail**: result cards show the service errors and the
-  all-services refresh button can retry.
+- [ ] **All services fail**: result cards show the service errors; each card's
+  hover/focus refresh button can retry that service.
 - [ ] **Network disconnected** mid-translation: per-service errors are
   shown, the app does not crash. (SPEC §4.3)
 

@@ -1,6 +1,6 @@
 //! Windows [`SelectionMonitor`] implementation.
 //!
-//! Uses `IUIAutomation` via the `windows` crate. See DESIGN.md §6.1.
+//! Uses `IUIAutomation` via the `windows` crate. See docs/DESIGN.md.
 //!
 //! Pipeline:
 //! 1. Initialize COM (apartment-threaded) — done once per process.
@@ -9,7 +9,7 @@
 //! 4. `element->GetCurrentPattern(UIA_TextPatternId, &pattern)` → `IUIAutomationTextPattern`
 //! 5. `pattern->GetSelection(&ranges)` → `IUIAutomationTextRangeArray`
 //! 6. `range->GetText(max, &bstr)` → selection string
-//! 7. `range->GetBoundingRectangles(&rects)` → screen coordinates
+//! 7. Optional future hook: `range->GetBoundingRectangles(&rects)` → screen coordinates
 //!
 //! No special permission is required by default on Windows.
 
@@ -103,9 +103,8 @@ fn read_focused_selection() -> Result<(Option<String>, Option<Rect>), SelectionE
     let bstr: BSTR = unsafe { range.GetText(100_000).map_err(map_com_error)? };
     let text = bstr_to_string(&bstr);
     let text = if text.is_empty() { None } else { Some(text) };
-    // Bounds: SAFEARRAY-based bounding-rectangle parsing is deferred; the
-    // cursor fallback in `popup_position::compute_popup_position` handles
-    // positioning for v1.
+    // Bounds: SAFEARRAY-based bounding-rectangle parsing is deferred. The
+    // v0.2 main-window flow no longer uses selection coordinates.
     Ok((text, None))
 }
 

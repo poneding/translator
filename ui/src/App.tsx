@@ -647,13 +647,13 @@ function SourceEditor({
               }}
               title={
                 copied
-                  ? t("popup-copied", null, "Copied")
-                  : t("popup-copy", null, "Copy")
+                  ? t("common-copied", null, "Copied")
+                  : t("common-copy", null, "Copy")
               }
               aria-label={
                 copied
-                  ? t("popup-copied", null, "Copied")
-                  : t("popup-copy", null, "Copy")
+                  ? t("common-copied", null, "Copied")
+                  : t("common-copy", null, "Copy")
               }
             >
               {copied ? (
@@ -776,7 +776,7 @@ function ServiceStatusRow({
               `${enabledServices.length} services enabled`,
             )
           : t(
-              "popup-no-services-enabled",
+              "main-no-services-enabled",
               null,
               "No services enabled. Open Settings to enable at least one.",
             )}
@@ -843,7 +843,7 @@ function TranslationErrorPanel({ message }: { message: string }) {
         <span>
           {isPermission
             ? t(
-                "popup-permission-denied",
+                "main-permission-denied",
                 null,
                 "Translator needs the Accessibility permission",
               )
@@ -854,7 +854,7 @@ function TranslationErrorPanel({ message }: { message: string }) {
             className="btn btn-ghost !h-7 border-red-500/30 text-red-500 hover:bg-red-500/10"
             onClick={() => void api.openPermissionSettings()}
           >
-            {t("popup-open-settings", null, "Open Settings")}
+            {t("common-open-settings", null, "Open Settings")}
           </button>
         )}
       </div>
@@ -996,13 +996,13 @@ function ResultBody({
             }}
             title={
               copied
-                ? t("popup-copied", null, "Copied")
-                : t("popup-copy", null, "Copy")
+                ? t("common-copied", null, "Copied")
+                : t("common-copy", null, "Copy")
             }
             aria-label={
               copied
-                ? t("popup-copied", null, "Copied")
-                : t("popup-copy", null, "Copy")
+                ? t("common-copied", null, "Copied")
+                : t("common-copy", null, "Copy")
             }
           >
             {copied ? (
@@ -1041,8 +1041,8 @@ function AudioButton({
     <button
       className={className}
       disabled={disabled || resolving}
-      title={t("popup-play-audio", null, "Play audio")}
-      aria-label={t("popup-play-audio", null, "Play audio")}
+      title={t("main-play-audio", null, "Play audio")}
+      aria-label={t("main-play-audio", null, "Play audio")}
       onClick={async () => {
         if (playing) {
           stopActiveAudio();
@@ -1247,8 +1247,8 @@ function MacWindowControls() {
       <button
         className="mac-window-control mac-window-close"
         onClick={() => void runWindowAction((win) => win.close())}
-        title={t("popup-close", null, "Close")}
-        aria-label={t("popup-close", null, "Close")}
+        title={t("common-close", null, "Close")}
+        aria-label={t("common-close", null, "Close")}
       >
         <X size={8} aria-hidden="true" />
       </button>
@@ -1283,8 +1283,8 @@ function WindowsWindowControls() {
       <button
         className="window-control window-control-close"
         onClick={() => void runWindowAction((win) => win.close())}
-        title={t("popup-close", null, "Close")}
-        aria-label={t("popup-close", null, "Close")}
+        title={t("common-close", null, "Close")}
+        aria-label={t("common-close", null, "Close")}
       >
         <X size={15} aria-hidden="true" />
       </button>

@@ -793,7 +793,9 @@ impl UpdateStatusDto {
 
 #[derive(Debug, Deserialize)]
 pub struct SetApiKeyArgs {
+    #[serde(alias = "serviceId")]
     pub service_id: String,
+    #[serde(alias = "apiKey")]
     pub api_key: String,
 }
 
@@ -806,6 +808,7 @@ pub fn set_api_key(args: SetApiKeyArgs) -> Result<(), String> {
 
 #[derive(Debug, Deserialize)]
 pub struct DeleteApiKeyArgs {
+    #[serde(alias = "serviceId")]
     pub service_id: String,
 }
 
@@ -817,6 +820,7 @@ pub fn delete_api_key(args: DeleteApiKeyArgs) -> Result<(), String> {
 
 #[derive(Debug, Deserialize)]
 pub struct HasApiKeyArgs {
+    #[serde(alias = "serviceId")]
     pub service_id: String,
 }
 
@@ -825,6 +829,30 @@ pub struct HasApiKeyArgs {
 #[tauri::command]
 pub fn has_api_key(args: HasApiKeyArgs) -> Result<bool, String> {
     translator_core::secrets::has_api_key(&args.service_id).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{DeleteApiKeyArgs, HasApiKeyArgs, SetApiKeyArgs};
+
+    #[test]
+    fn keychain_ipc_args_accept_frontend_shape() {
+        let set: SetApiKeyArgs =
+            serde_json::from_value(json!({ "serviceId": "openai", "apiKey": "secret" }))
+                .expect("set args should deserialize from frontend payload");
+        assert_eq!(set.service_id, "openai");
+        assert_eq!(set.api_key, "secret");
+
+        let delete: DeleteApiKeyArgs = serde_json::from_value(json!({ "serviceId": "openai" }))
+            .expect("delete args should deserialize from frontend payload");
+        assert_eq!(delete.service_id, "openai");
+
+        let has: HasApiKeyArgs = serde_json::from_value(json!({ "serviceId": "openai" }))
+            .expect("has args should deserialize from frontend payload");
+        assert_eq!(has.service_id, "openai");
+    }
 }
 
 #[derive(Debug, Deserialize)]

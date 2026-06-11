@@ -46,21 +46,21 @@ main-refresh-all = Refresh translations
 main-refresh-service = Refresh this service
 main-error-clipboard = Could not read clipboard: { $msg }
 
-# Popup
-popup-title = Translation
-popup-loading = Translating…
-popup-empty = No text selected
-popup-permission-denied = Translator needs the Accessibility permission
-popup-open-settings = Open Settings
-popup-copy = Copy
-popup-copied = Copied
-popup-retry = Retry
-popup-close = Close
-popup-source = source:
-popup-detected = detected: { $lang }
-popup-truncated = Selection truncated: { $kept } of { $original } characters kept (100 000-char limit).
-popup-no-services-enabled = No services enabled. Open Settings to enable at least one.
-popup-play-audio = Play audio
+# Main window shared strings
+main-window-title = Translation
+main-window-loading = Translating…
+main-window-empty-selection = No text selected
+main-permission-denied = Translator needs the Accessibility permission
+common-open-settings = Open Settings
+common-copy = Copy
+common-copied = Copied
+main-retry = Retry
+common-close = Close
+main-source-label = source:
+main-detected-language = detected: { $lang }
+main-selection-truncated = Selection truncated: { $kept } of { $original } characters kept (100 000-char limit).
+main-no-services-enabled = No services enabled. Open Settings to enable at least one.
+main-play-audio = Play audio
 
 # Common errors
 error-network = Network error
