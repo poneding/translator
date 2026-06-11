@@ -44,6 +44,14 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Prepare Tauri frontendDist for tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ui/dist | Out-Null
+          if (-not (Test-Path -LiteralPath ui/dist/index.html)) {
+            Set-Content -LiteralPath ui/dist/index.html -Value "<!doctype html><html><body></body></html>" -NoNewline
+          }
+
       - name: cargo test
         shell: pwsh
         env:
