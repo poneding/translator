@@ -8,8 +8,43 @@ permissions:
   contents: write
 
 jobs:
+  validate-updater-secrets:
+    name: validate-updater-secrets
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Validate updater signing secrets
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_B64) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_B64 is required to create updater artifacts"
+          }
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is required to create updater artifacts"
+          }
+
+          try {
+            $keyFileBytes = [Convert]::FromBase64String($env:TAURI_SIGNING_PRIVATE_KEY_B64)
+          } catch {
+            throw "TAURI_SIGNING_PRIVATE_KEY_B64 must be valid base64"
+          }
+
+          $keyFileText = [Text.Encoding]::UTF8.GetString($keyFileBytes).Trim()
+          try {
+            $decodedKeyText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($keyFileText))
+          } catch {
+            throw "TAURI_SIGNING_PRIVATE_KEY_B64 must decode to a Tauri private key file"
+          }
+
+          if (-not $decodedKeyText.StartsWith("untrusted comment:")) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_B64 does not look like a Tauri private key file"
+          }
+
   release-notes:
     name: release-notes
+    needs: validate-updater-secrets
     runs-on: ubuntu-22.04
     outputs:
       body: ${{ steps.git-cliff.outputs.content }}
@@ -74,6 +109,8 @@ jobs:
                 owner,
                 repo,
                 release_id: release.id,
+                tag_name: tag,
+                target_commitish: context.sha,
                 name,
                 body,
                 draft: true,
