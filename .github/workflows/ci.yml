@@ -48,16 +48,49 @@ jobs:
         shell: pwsh
         env:
           RUST_BACKTRACE: "1"
+          CARGO_TERM_COLOR: never
         run: |
-          $output = & cargo test --workspace --all-features -- --test-threads=1 2>&1
-          $code = $LASTEXITCODE
-          $output
-          if ($code -ne 0) {
-            $tail = ($output | Select-Object -Last 160) -join "`n"
-            $message = $tail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-            Write-Output "::error title=cargo test failed::$message"
-            exit $code
+          $ErrorActionPreference = "Continue"
+          $log = Join-Path $env:RUNNER_TEMP "cargo-test.log"
+          $packages = @("translator-core", "translator-platform", "translator-app")
+          $failed = @()
+
+          foreach ($package in $packages) {
+            "===== cargo test -p $package =====" | Tee-Object -FilePath $log -Append
+            & cargo test --quiet -p $package --all-features -- --test-threads=1 2>&1 | Tee-Object -FilePath $log -Append
+            $code = $LASTEXITCODE
+            if ($code -ne 0) {
+              $failed += "$package ($code)"
+              "===== $package failed with exit code $code =====" | Tee-Object -FilePath $log -Append
+            }
           }
+
+          if ($failed.Count -gt 0) {
+            $patterns = "error\[|error:|panicked|could not compile|FAILED|failures:|test result|No such file|not found|undefined reference|process didn't exit successfully"
+            $matches = Select-String -Path $log -Pattern $patterns -Context 3,8
+            if ($matches) {
+              $focus = $matches | Select-Object -First 80 | ForEach-Object { $_.ToString() }
+            } else {
+              $focus = Get-Content -Path $log -Tail 240
+            }
+
+            $summary = @("Failed package(s): $($failed -join ', ')", "===== focused failure log =====") + $focus
+            $message = ($summary -join "`n")
+            if ($message.Length -gt 3600) {
+              $message = $message.Substring(0, 3600)
+            }
+            $message = $message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=cargo test failed::$message"
+            exit 1
+          }
+
+      - name: Upload cargo test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-test-${{ matrix.os }}
+          path: ${{ runner.temp }}/cargo-test.log
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------
   # cargo audit: known-vulnerable dependencies
