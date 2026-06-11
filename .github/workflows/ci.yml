@@ -64,11 +64,11 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
       - name: Run cargo audit
-        uses: rustsec/audit-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ignore-advisories: ""
+        run: cargo audit
 
   # ---------------------------------------------------------------------
   # Frontend: install, typecheck, lint, build

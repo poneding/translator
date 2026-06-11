@@ -18,6 +18,7 @@ tracing = { workspace = true }
 accessibility-sys = "0.2"
 core-foundation = "0.10"
 core-graphics = "0.23"
+tokio = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 clipboard-win = "5.4"

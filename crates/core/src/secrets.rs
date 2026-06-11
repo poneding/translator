@@ -2,11 +2,18 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use keyring::Entry;
 
 const SERVICE_NAME: &str = "dev.translator.desktop";
+
+static FALLBACK_SECRETS_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn fallback_secrets_lock() -> &'static Mutex<()> {
+    FALLBACK_SECRETS_LOCK.get_or_init(|| Mutex::new(()))
+}
 
 /// Store an API key for a given service.
 pub fn set_api_key(service_id: &str, api_key: &str) -> Result<()> {
@@ -108,16 +115,25 @@ fn write_fallback_secrets(secrets: &BTreeMap<String, String>) -> Result<()> {
 }
 
 fn set_fallback_api_key(service_id: &str, api_key: &str) -> Result<()> {
+    let _guard = fallback_secrets_lock()
+        .lock()
+        .map_err(|_| anyhow::anyhow!("fallback secrets lock poisoned"))?;
     let mut secrets = read_fallback_secrets()?;
     secrets.insert(service_id.to_string(), api_key.to_string());
     write_fallback_secrets(&secrets)
 }
 
 fn get_fallback_api_key(service_id: &str) -> Result<Option<String>> {
+    let _guard = fallback_secrets_lock()
+        .lock()
+        .map_err(|_| anyhow::anyhow!("fallback secrets lock poisoned"))?;
     Ok(read_fallback_secrets()?.get(service_id).cloned())
 }
 
 fn delete_fallback_api_key(service_id: &str) -> Result<()> {
+    let _guard = fallback_secrets_lock()
+        .lock()
+        .map_err(|_| anyhow::anyhow!("fallback secrets lock poisoned"))?;
     let mut secrets = read_fallback_secrets()?;
     secrets.remove(service_id);
     write_fallback_secrets(&secrets)
