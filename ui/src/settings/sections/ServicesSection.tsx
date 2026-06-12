@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown, GripVertical, Save, Trash2 } from "lucide-react";
 import { useConfigStore } from "../../stores/config";
 import { useT } from "../../i18n";
@@ -65,6 +65,22 @@ export function ServicesSection() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dragging, setDragging] = useState<ServiceId | null>(null);
   const [draftOrder, setDraftOrder] = useState<ServiceId[] | null>(null);
+  const draggingRef = useRef<ServiceId | null>(null);
+  const draftOrderRef = useRef<ServiceId[] | null>(null);
+  const commitOrderRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const finishDrag = () => commitOrderRef.current();
+    window.addEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", finishDrag);
+    return () => {
+      window.removeEventListener("pointerup", finishDrag);
+      window.removeEventListener("pointercancel", finishDrag);
+    };
+  }, [dragging]);
+
   if (!config) return null;
 
   const savedServices = SERVICES.filter((svc) => config.services[svc.id])
@@ -83,8 +99,22 @@ export function ServicesSection() {
       Boolean(svc && config.services[svc.id]),
     );
 
+  const persistOrder = (nextOrder: ServiceId[]) => {
+    const nextServices = { ...config.services };
+    nextOrder.forEach((id, index) => {
+      const current = nextServices[id];
+      if (current) nextServices[id] = { ...current, priority: index };
+    });
+    draggingRef.current = null;
+    draftOrderRef.current = null;
+    setDraftOrder(null);
+    setDragging(null);
+    void save({ ...config, services: nextServices });
+  };
+
   const moveDraft = (from: ServiceId, to: ServiceId) => {
-    const currentOrder = draftOrder ?? orderedServices.map((svc) => svc.id);
+    const currentOrder =
+      draftOrderRef.current ?? orderedServices.map((svc) => svc.id);
     const fromIndex = currentOrder.indexOf(from);
     const toIndex = currentOrder.indexOf(to);
     if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
@@ -92,23 +122,33 @@ export function ServicesSection() {
     const nextOrder = [...currentOrder];
     const [moved] = nextOrder.splice(fromIndex, 1);
     nextOrder.splice(toIndex, 0, moved);
+    draftOrderRef.current = nextOrder;
     setDraftOrder(nextOrder);
   };
 
+  const beginDragService = (id: ServiceId) => {
+    const nextOrder = orderedServices.map((svc) => svc.id);
+    draggingRef.current = id;
+    draftOrderRef.current = nextOrder;
+    setDragging(id);
+    setDraftOrder(nextOrder);
+  };
+
+  const hoverDragService = (id: ServiceId) => {
+    const dragged = draggingRef.current;
+    if (dragged) moveDraft(dragged, id);
+  };
+
   const commitOrder = () => {
-    if (!draftOrder) {
+    const nextOrder = draftOrderRef.current;
+    if (!nextOrder) {
+      draggingRef.current = null;
       setDragging(null);
       return;
     }
-    const nextServices = { ...config.services };
-    draftOrder.forEach((id, index) => {
-      const current = nextServices[id];
-      if (current) nextServices[id] = { ...current, priority: index };
-    });
-    setDraftOrder(null);
-    setDragging(null);
-    void save({ ...config, services: nextServices });
+    persistOrder(nextOrder);
   };
+  commitOrderRef.current = commitOrder;
 
   return (
     <div className="space-y-3">
@@ -140,13 +180,8 @@ export function ServicesSection() {
               }))
             }
             dragging={dragging === svc.id}
-            onDragStart={() => {
-              setDragging(svc.id);
-              setDraftOrder(orderedServices.map((service) => service.id));
-            }}
-            onDragOverService={() => {
-              if (dragging) moveDraft(dragging, svc.id);
-            }}
+            onDragStart={() => beginDragService(svc.id)}
+            onDragOverService={() => hoverDragService(svc.id)}
             onDragEnd={commitOrder}
             onDrop={commitOrder}
             options={sc.options as Record<string, unknown>}
@@ -276,36 +311,34 @@ function ServiceRow({
         "rounded-lg border border-border bg-bg p-3 transition " +
         (dragging ? "opacity-60" : "")
       }
-      onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
+      onPointerEnter={() => {
         onDragOverService();
       }}
-      onDrop={(event) => {
-        event.preventDefault();
+      onPointerUp={() => {
+        onDrop();
+      }}
+      onPointerCancel={() => {
         onDrop();
       }}
     >
       <div className="flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             className="icon-btn !h-7 !w-7 cursor-grab"
-            draggable
             aria-label={t("settings-services-drag-aria", {
               service: meta.name,
             })}
             title={t("settings-services-drag")}
-            onDragStart={(event) => {
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", meta.id);
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
               onDragStart();
             }}
-            onDragEnd={onDragEnd}
+            onPointerUp={onDragEnd}
           >
             <GripVertical size={15} aria-hidden="true" />
-          </div>
+          </button>
           <div className="relative shrink-0">
             <ServiceLogo serviceId={meta.id} className="h-7 w-7" />
             <span

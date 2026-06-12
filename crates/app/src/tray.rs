@@ -10,7 +10,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Runtime,
+    AppHandle, Manager, Runtime,
 };
 
 use crate::commands;
@@ -45,6 +45,9 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 let _ = commands::show_main_window(app, Some("translator://open-settings"));
             }
             "quit" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = commands::remember_main_webview_window_position(&window);
+                }
                 app.exit(0);
             }
             _ => {}

@@ -44,7 +44,13 @@ export interface ProxyConfig {
 
 export interface WindowConfig {
   always_on_top: boolean;
-  display_position: "right" | "center" | "mouse" | string;
+  display_position: "remember" | "right" | "center" | "mouse" | string;
+  last_position?: WindowPosition | null;
+}
+
+export interface WindowPosition {
+  x: number;
+  y: number;
 }
 
 export interface UpdateConfig {

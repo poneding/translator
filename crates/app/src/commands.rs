@@ -7,10 +7,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize, Position,
-    Runtime, Size, State, WebviewWindow,
+    Runtime, Size, State, WebviewWindow, Window,
 };
 use tauri_plugin_updater::UpdaterExt;
 
+use translator_core::config::{WindowConfig, WindowPosition};
 use translator_core::{Config, ServiceError, ServiceId, TranslateResult};
 use translator_platform::SelectionError;
 
@@ -325,7 +326,9 @@ pub(crate) fn show_main_window<R: Runtime>(
     let win: WebviewWindow<R> = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
-    prepare_main_window(app, &win, &cfg)?;
+    prepare_main_window_for_show(app, &win, &cfg)?;
+    #[cfg(target_os = "macos")]
+    let _ = app.show();
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
     if let Some(event) = event {
@@ -339,6 +342,28 @@ pub(crate) fn prepare_main_window<R: Runtime>(
     win: &WebviewWindow<R>,
     cfg: &Config,
 ) -> Result<(), String> {
+    prepare_main_window_inner(app, win, cfg, true)
+}
+
+fn prepare_main_window_for_show<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &WebviewWindow<R>,
+    cfg: &Config,
+) -> Result<(), String> {
+    prepare_main_window_inner(
+        app,
+        win,
+        cfg,
+        should_position_main_window_on_show(&cfg.window.display_position),
+    )
+}
+
+fn prepare_main_window_inner<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &WebviewWindow<R>,
+    cfg: &Config,
+    should_position: bool,
+) -> Result<(), String> {
     win.set_always_on_top(cfg.window.always_on_top)
         .map_err(|e| e.to_string())?;
     let _ = win.set_maximizable(false);
@@ -346,16 +371,29 @@ pub(crate) fn prepare_main_window<R: Runtime>(
         MAIN_WINDOW_MAX_WIDTH,
         MAIN_WINDOW_MAX_HEIGHT,
     ))));
-    position_main_window(app, win, &cfg.window.display_position)
+    if should_position {
+        position_main_window(app, win, &cfg.window)?;
+    }
+    Ok(())
+}
+
+fn should_position_main_window_on_show(display_position: &str) -> bool {
+    display_position != "remember"
 }
 
 fn position_main_window<R: Runtime>(
     app: &AppHandle<R>,
     win: &WebviewWindow<R>,
-    display_position: &str,
+    window_config: &WindowConfig,
 ) -> Result<(), String> {
     let cursor = app.cursor_position().ok();
-    let monitor = target_monitor(app, win, cursor)?;
+    let remembered_target =
+        remembered_position_target(app, &window_config.display_position, window_config)?;
+    let (monitor, remembered_position) = if let Some((monitor, position)) = remembered_target {
+        (Some(monitor), Some(position))
+    } else {
+        (target_monitor(app, win, cursor)?, None)
+    };
     let Some(monitor) = monitor else {
         return Ok(());
     };
@@ -365,33 +403,127 @@ fn position_main_window<R: Runtime>(
             MAIN_WINDOW_DEFAULT_HEIGHT as u32,
         )
     });
-    let work = monitor.work_area();
-    let left = work.position.x;
-    let top = work.position.y;
-    let right = left + work.size.width as i32;
-    let bottom = top + work.size.height as i32;
+    let position = resolve_main_window_position(
+        &window_config.display_position,
+        remembered_position,
+        cursor,
+        MainWindowWorkArea::from_monitor(&monitor),
+        size,
+    );
+    win.set_position(Position::Physical(position))
+        .map_err(|e| e.to_string())
+}
+
+fn remembered_position_target<R: Runtime>(
+    app: &AppHandle<R>,
+    display_position: &str,
+    window_config: &WindowConfig,
+) -> Result<Option<(Monitor, WindowPosition)>, String> {
+    if display_position != "remember" {
+        return Ok(None);
+    }
+    let Some(position) = window_config.last_position else {
+        return Ok(None);
+    };
+    let monitor = app
+        .monitor_from_point(position.x as f64, position.y as f64)
+        .map_err(|e| e.to_string())?;
+    Ok(monitor.map(|monitor| (monitor, position)))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct MainWindowWorkArea {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+impl MainWindowWorkArea {
+    fn from_monitor(monitor: &Monitor) -> Self {
+        let work = monitor.work_area();
+        let left = work.position.x;
+        let top = work.position.y;
+        Self {
+            left,
+            top,
+            right: left + work.size.width as i32,
+            bottom: top + work.size.height as i32,
+        }
+    }
+}
+
+fn resolve_main_window_position(
+    display_position: &str,
+    remembered_position: Option<WindowPosition>,
+    cursor: Option<PhysicalPosition<f64>>,
+    work_area: MainWindowWorkArea,
+    size: PhysicalSize<u32>,
+) -> PhysicalPosition<i32> {
     let width = size.width as i32;
     let height = size.height as i32;
+    let work_width = work_area.right - work_area.left;
+    let work_height = work_area.bottom - work_area.top;
+    let top_right = || {
+        (
+            work_area.right - width - WINDOW_EDGE_MARGIN,
+            work_area.top + WINDOW_EDGE_MARGIN,
+        )
+    };
 
     let (raw_x, raw_y) = match display_position {
+        "remember" => remembered_position
+            .map(|position| (position.x, position.y))
+            .unwrap_or_else(top_right),
         "center" => (
-            left + (work.size.width as i32 - width) / 2,
-            top + (work.size.height as i32 - height) / 2,
+            work_area.left + (work_width - width) / 2,
+            work_area.top + (work_height - height) / 2,
         ),
         "mouse" => {
             if let Some(cursor) = cursor {
                 (cursor.x.round() as i32 + 16, cursor.y.round() as i32 + 16)
             } else {
-                (right - width - WINDOW_EDGE_MARGIN, top + WINDOW_EDGE_MARGIN)
+                top_right()
             }
         }
-        _ => (right - width - WINDOW_EDGE_MARGIN, top + WINDOW_EDGE_MARGIN),
+        _ => top_right(),
     };
 
-    let x = clamp_window_axis(raw_x, left, right, width);
-    let y = clamp_window_axis(raw_y, top, bottom, height);
-    win.set_position(Position::Physical(PhysicalPosition::new(x, y)))
-        .map_err(|e| e.to_string())
+    PhysicalPosition::new(
+        clamp_window_axis(raw_x, work_area.left, work_area.right, width),
+        clamp_window_axis(raw_y, work_area.top, work_area.bottom, height),
+    )
+}
+
+pub(crate) fn remember_main_window_position<R: Runtime>(window: &Window<R>) -> Result<(), String> {
+    let position = window.outer_position().map_err(|e| e.to_string())?;
+    remember_main_window_position_inner(window.label(), position)
+}
+
+pub(crate) fn remember_main_webview_window_position<R: Runtime>(
+    window: &WebviewWindow<R>,
+) -> Result<(), String> {
+    let position = window.outer_position().map_err(|e| e.to_string())?;
+    remember_main_window_position_inner(window.label(), position)
+}
+
+fn remember_main_window_position_inner(
+    label: &str,
+    position: PhysicalPosition<i32>,
+) -> Result<(), String> {
+    if label != "main" {
+        return Ok(());
+    }
+    let next = WindowPosition {
+        x: position.x,
+        y: position.y,
+    };
+    let mut cfg = Config::load().map_err(|e| e.to_string())?;
+    if cfg.window.last_position == Some(next) {
+        return Ok(());
+    }
+    cfg.window.last_position = Some(next);
+    cfg.save().map_err(|e| e.to_string())
 }
 
 fn target_monitor<R: Runtime>(
@@ -833,9 +965,16 @@ pub fn has_api_key(args: HasApiKeyArgs) -> Result<bool, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, path::Path};
+
     use serde_json::json;
 
-    use super::{DeleteApiKeyArgs, HasApiKeyArgs, SetApiKeyArgs};
+    use super::{
+        resolve_main_window_position, should_position_main_window_on_show, DeleteApiKeyArgs,
+        HasApiKeyArgs, MainWindowWorkArea, PhysicalPosition, PhysicalSize, SetApiKeyArgs,
+        WINDOW_EDGE_MARGIN,
+    };
+    use translator_core::config::WindowPosition;
 
     #[test]
     fn keychain_ipc_args_accept_frontend_shape() {
@@ -852,6 +991,470 @@ mod tests {
         let has: HasApiKeyArgs = serde_json::from_value(json!({ "serviceId": "openai" }))
             .expect("has args should deserialize from frontend payload");
         assert_eq!(has.service_id, "openai");
+    }
+
+    #[test]
+    fn remembered_window_position_uses_saved_coordinates_when_available() {
+        let work_area = MainWindowWorkArea {
+            left: 0,
+            top: 0,
+            right: 1440,
+            bottom: 900,
+        };
+
+        let position = resolve_main_window_position(
+            "remember",
+            Some(WindowPosition { x: 240, y: 160 }),
+            None,
+            work_area,
+            PhysicalSize::new(680, 560),
+        );
+
+        assert_eq!(position, PhysicalPosition::new(240, 160));
+    }
+
+    #[test]
+    fn remembered_window_position_falls_back_to_top_right_without_saved_coordinates() {
+        let work_area = MainWindowWorkArea {
+            left: 0,
+            top: 0,
+            right: 1440,
+            bottom: 900,
+        };
+
+        let position = resolve_main_window_position(
+            "remember",
+            None,
+            None,
+            work_area,
+            PhysicalSize::new(680, 560),
+        );
+
+        assert_eq!(
+            position,
+            PhysicalPosition::new(1440 - 680 - WINDOW_EDGE_MARGIN, WINDOW_EDGE_MARGIN),
+        );
+    }
+
+    #[test]
+    fn remembered_window_position_is_preserved_on_regular_show() {
+        assert!(!should_position_main_window_on_show("remember"));
+        assert!(should_position_main_window_on_show("right"));
+        assert!(should_position_main_window_on_show("center"));
+        assert!(should_position_main_window_on_show("mouse"));
+    }
+
+    #[test]
+    fn macos_dock_reopen_routes_to_main_window_show() {
+        let main_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+        let source = fs::read_to_string(main_source_path).expect("main.rs should be readable");
+
+        assert!(
+            source.contains("RunEvent::Reopen")
+                && source
+                    .contains("commands::show_main_window(app, Some(\"translator://open-main\"))"),
+            "macOS Dock reopen should route through the normal main-window show path",
+        );
+    }
+
+    #[test]
+    fn main_window_uses_native_platform_decorations() {
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
+        let config: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(config_path).expect("tauri.conf.json should be readable"),
+        )
+        .expect("tauri.conf.json should be valid JSON");
+        let windows = config["app"]["windows"]
+            .as_array()
+            .expect("app.windows should be an array");
+        let main = windows
+            .iter()
+            .find(|window| window["label"] == "main")
+            .expect("main window config should exist");
+
+        assert_ne!(
+            main.get("decorations").and_then(serde_json::Value::as_bool),
+            Some(false),
+            "main window must keep native platform decorations so macOS gets default rounded corners and traffic lights",
+        );
+    }
+
+    #[test]
+    fn app_does_not_render_fake_macos_traffic_lights() {
+        let app_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/App.tsx")
+            .canonicalize()
+            .expect("App.tsx path should resolve");
+        let source = fs::read_to_string(app_source).expect("App.tsx should be readable");
+
+        assert!(
+            !source.contains("MacWindowControls"),
+            "macOS must use native traffic-light controls instead of CSS-drawn window controls",
+        );
+    }
+
+    #[test]
+    fn macos_traffic_lights_are_vertically_centered_in_titlebar() {
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
+        let config: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(config_path).expect("tauri.conf.json should be readable"),
+        )
+        .expect("tauri.conf.json should be valid JSON");
+        let app_css_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/app.css")
+            .canonicalize()
+            .expect("app.css path should resolve");
+        let app_css = fs::read_to_string(app_css_path).expect("app.css should be readable");
+        let main = config["app"]["windows"]
+            .as_array()
+            .expect("app.windows should be an array")
+            .iter()
+            .find(|window| window["label"] == "main")
+            .expect("main window config should exist");
+
+        assert!(
+            app_css.contains("h-[34px]"),
+            "titlebar height changed; re-check traffic light centering",
+        );
+        assert_eq!(
+            main["trafficLightPosition"]["x"].as_i64(),
+            Some(12),
+            "macOS traffic lights should sit close to the left edge without touching it",
+        );
+        assert_eq!(
+            main["trafficLightPosition"]["y"].as_i64(),
+            Some(14),
+            "macOS traffic lights should be visually centered inside the 34px titlebar",
+        );
+    }
+
+    #[test]
+    fn language_dropdown_flags_are_platform_gated() {
+        let combobox_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/components/Combobox.tsx")
+            .canonicalize()
+            .expect("Combobox.tsx path should resolve");
+        let source = fs::read_to_string(combobox_source).expect("Combobox.tsx should be readable");
+
+        assert!(
+            source.contains("showOptionFlag") && source.contains("macos"),
+            "language dropdown flags should be rendered only when the host platform is macOS",
+        );
+    }
+
+    #[test]
+    fn language_direction_renders_language_names_and_short_codes() {
+        let app_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/App.tsx")
+            .canonicalize()
+            .expect("App.tsx path should resolve");
+        let source = fs::read_to_string(app_source).expect("App.tsx should be readable");
+
+        assert!(
+            source.contains("source-language-token") && source.contains("selectedDisplay=\"full\""),
+            "source-to-target language display should include language names plus short codes",
+        );
+    }
+
+    #[test]
+    fn enabled_service_logos_do_not_use_negative_overlap() {
+        let app_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/App.tsx")
+            .canonicalize()
+            .expect("App.tsx path should resolve");
+        let source = fs::read_to_string(app_source).expect("App.tsx should be readable");
+        let css_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/app.css")
+            .canonicalize()
+            .expect("app.css path should resolve");
+        let css = fs::read_to_string(css_path).expect("app.css should be readable");
+
+        assert!(
+            source.contains("service-logo-frame") && css.contains("-space-x-1"),
+            "enabled service logos should overlap as connected frames",
+        );
+        assert!(
+            css.contains(".service-logo-frame")
+                && css.contains("ring-2")
+                && css.contains("ring-bg")
+                && !css.contains(".service-logo-strip {\n    @apply inline-flex shrink-0 items-center gap-1;"),
+            "overlapped service logos should use background rings so borders do not cover adjacent logos",
+        );
+    }
+
+    #[test]
+    fn services_can_be_reordered_with_drag_handle_button() {
+        let services_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/ServicesSection.tsx")
+            .canonicalize()
+            .expect("ServicesSection.tsx path should resolve");
+        let source =
+            fs::read_to_string(services_source).expect("ServicesSection.tsx should be readable");
+
+        assert!(
+            source.contains("<button")
+                && source.contains("onPointerDown")
+                && source.contains("onPointerEnter")
+                && source.contains("onPointerUp")
+                && source.contains("settings-services-drag-aria")
+                && source.contains("save({ ...config, services: nextServices })"),
+            "services should use a draggable handle button that persists priority order",
+        );
+        assert!(
+            !source.contains("ArrowUp")
+                && !source.contains("ArrowDown")
+                && !source.contains("settings-services-move-up")
+                && !source.contains("settings-services-move-down"),
+            "service ordering should not add separate up/down move buttons",
+        );
+    }
+
+    #[test]
+    fn default_main_window_width_uses_original_680() {
+        let commands_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands.rs");
+        let commands = fs::read_to_string(commands_path).expect("commands.rs should be readable");
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
+        let config: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(config_path).expect("tauri.conf.json should be readable"),
+        )
+        .expect("tauri.conf.json should be valid JSON");
+        let main = config["app"]["windows"]
+            .as_array()
+            .expect("app.windows should be an array")
+            .iter()
+            .find(|window| window["label"] == "main")
+            .expect("main window config should exist");
+
+        assert!(
+            commands.contains("MAIN_WINDOW_DEFAULT_WIDTH: f64 = 680.0")
+                && main["width"].as_u64() == Some(680)
+                && main["minWidth"].as_u64() == Some(680),
+            "default main window width and minimum width should use the original 680",
+        );
+    }
+
+    #[test]
+    fn scrollbars_use_theme_variables_for_thumb_and_track() {
+        let css_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/app.css")
+            .canonicalize()
+            .expect("app.css path should resolve");
+        let source = fs::read_to_string(css_path).expect("app.css should be readable");
+
+        assert!(
+            source.contains("--scrollbar-track")
+                && source.contains("scrollbar-color: transparent transparent")
+                && source.contains(".is-scrolling")
+                && source.contains("scrollbar-color: rgb(var(--scrollbar-thumb)) transparent",),
+            "scrollbars should be hidden by default and use theme colors while scrolling",
+        );
+        assert!(
+            !source.contains("background-color: rgb(var(--scrollbar-track))")
+                && !source.contains(":focus-within::-webkit-scrollbar"),
+            "scrollbar tracks should stay transparent and scrollbars should not remain visible just because a control has focus",
+        );
+    }
+
+    #[test]
+    fn results_scrollbar_is_hidden_without_affecting_source_editor() {
+        let app_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/App.tsx")
+            .canonicalize()
+            .expect("App.tsx path should resolve");
+        let app = fs::read_to_string(app_source).expect("App.tsx should be readable");
+        let css_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/app.css")
+            .canonicalize()
+            .expect("app.css path should resolve");
+        let css = fs::read_to_string(css_path).expect("app.css should be readable");
+
+        assert!(
+            app.contains("main-shell") && app.contains("results-scroll"),
+            "results should use named layout containers for independent scrolling",
+        );
+        assert!(
+            css.contains(".results-scroll")
+                && css.contains("overflow-y-auto")
+                && css.contains("scrollbar-width: none")
+                && css.contains(".results-scroll::-webkit-scrollbar")
+                && css.contains("display: none"),
+            "result area should remain scrollable while hiding its scrollbar",
+        );
+        assert!(
+            !css.contains(".main-shell:not(.main-shell-history) .results-scroll")
+                && !css.contains("padding-right: calc(1rem + var(--scrollbar-size))")
+                && !css.contains("gap-3 overflow-hidden"),
+            "result scrolling must not add horizontal compensation or clip the source editor focus ring",
+        );
+    }
+
+    #[test]
+    fn settings_window_position_defaults_to_remember_option() {
+        let general_section_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/GeneralSection.tsx")
+            .canonicalize()
+            .expect("GeneralSection.tsx path should resolve");
+        let source = fs::read_to_string(general_section_path)
+            .expect("GeneralSection.tsx should be readable");
+
+        assert!(
+            source.contains("\"remember\"")
+                && source.contains("settings-general-window-position-remember")
+                && source.contains(": \"remember\""),
+            "settings window position selector should offer remembered position and normalize unknown values to remember",
+        );
+    }
+
+    #[test]
+    fn update_check_action_lives_in_update_heading_and_idle_status_is_hidden() {
+        let settings_app_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/SettingsApp.tsx")
+            .canonicalize()
+            .expect("SettingsApp.tsx path should resolve");
+        let settings_app =
+            fs::read_to_string(settings_app_path).expect("SettingsApp.tsx should be readable");
+        let update_section_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/UpdateSection.tsx")
+            .canonicalize()
+            .expect("UpdateSection.tsx path should resolve");
+        let update_section = fs::read_to_string(update_section_path)
+            .expect("UpdateSection.tsx should be readable");
+
+        assert!(
+            settings_app.contains("titleAction")
+                && settings_app.contains("<UpdateCheckButton")
+                && settings_app.contains("justify-between"),
+            "update check button should render in the update section heading, aligned to the right",
+        );
+        assert!(
+            update_section.contains("status.status !== \"idle\"")
+                && !update_section.contains("settings-update-status-idle"),
+            "idle update status should not render the default 'not checked' message",
+        );
+    }
+
+    #[test]
+    fn app_and_settings_install_auto_hide_scrollbars() {
+        let app_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/App.tsx")
+            .canonicalize()
+            .expect("App.tsx path should resolve");
+        let app = fs::read_to_string(app_source).expect("App.tsx should be readable");
+        let settings_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/SettingsApp.tsx")
+            .canonicalize()
+            .expect("SettingsApp.tsx path should resolve");
+        let settings =
+            fs::read_to_string(settings_source).expect("SettingsApp.tsx should be readable");
+        let hook_source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/hooks/useAutoHideScrollbars.ts")
+            .canonicalize()
+            .expect("useAutoHideScrollbars.ts path should resolve");
+        let hook = fs::read_to_string(hook_source).expect("hook should be readable");
+
+        assert!(
+            app.contains("useAutoHideScrollbars();")
+                && settings.contains("useAutoHideScrollbars();"),
+            "main app and standalone settings app should both install the scrollbar auto-hide listener",
+        );
+        assert!(
+            hook.contains("is-scrolling") && hook.contains("setTimeout"),
+            "auto-hide hook should mark scrolling containers only while scrolling",
+        );
+    }
+
+    #[test]
+    fn html_sets_initial_theme_before_react_loads() {
+        for name in ["index.html", "settings.html"] {
+            let html_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../ui")
+                .join(name)
+                .canonicalize()
+                .expect("html path should resolve");
+            let html = fs::read_to_string(html_path).expect("html should be readable");
+
+            assert!(
+                html.contains("translator-theme")
+                    && html.contains("data-theme")
+                    && html.contains("prefers-color-scheme: dark")
+                    && html.contains("rgb(20, 22, 28)")
+                    && html.contains("color-scheme"),
+                "{name} should paint the initial theme in <head> before React and app.css load",
+            );
+        }
+    }
+
+    #[test]
+    fn main_window_uses_dark_startup_background_color() {
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
+        let config: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(config_path).expect("tauri.conf.json should be readable"),
+        )
+        .expect("tauri.conf.json should be valid JSON");
+        let windows = config["app"]["windows"]
+            .as_array()
+            .expect("app.windows should be an array");
+        let main = windows
+            .iter()
+            .find(|window| window["label"] == "main")
+            .expect("main window config should exist");
+
+        assert_eq!(
+            main["backgroundColor"].as_str(),
+            Some("#14161c"),
+            "main window and webview should start on the dark app background instead of white",
+        );
+    }
+
+    #[test]
+    fn theme_hook_preserves_bootstrap_theme_until_config_loads() {
+        let hook_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/hooks/useTheme.ts")
+            .canonicalize()
+            .expect("useTheme.ts path should resolve");
+        let source = fs::read_to_string(hook_path).expect("useTheme.ts should be readable");
+
+        assert!(
+            source.contains("ThemeChoice | null | undefined")
+                && source.contains("if (!choice) return;")
+                && source.contains("translator-theme")
+                && source.contains("localStorage.setItem")
+                && source.contains("localStorage.removeItem"),
+            "useTheme should leave the inline bootstrap theme alone until config loads, then cache explicit choices",
+        );
+    }
+
+    #[test]
+    fn apps_wait_for_config_before_applying_theme_choice() {
+        for name in ["App.tsx", "SettingsApp.tsx"] {
+            let app_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../ui/src")
+                .join(name)
+                .canonicalize()
+                .expect("app source path should resolve");
+            let source = fs::read_to_string(app_path).expect("app source should be readable");
+
+            assert!(
+                source.contains("useTheme(config?.general.theme")
+                    && !source.contains("??\n      \"system\""),
+                "{name} should not apply the system theme before persisted config has loaded",
+            );
+        }
+    }
+
+    #[test]
+    fn tray_uses_shared_icon_asset_with_runtime_menu_bar_scaling() {
+        let tray_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tray.rs");
+        let source = fs::read_to_string(tray_source_path).expect("tray.rs should be readable");
+
+        assert!(
+            source.contains("include_bytes!(\"../icons/icon.png\")")
+                && !source.contains("tray-icon.png")
+                && source.contains("extract_template_glyph_mask")
+                && source.contains("crop_transparent_padding")
+                && source.contains(".icon_as_template(true)"),
+            "tray should use the shared app icon asset, extract the white logo glyph for the macOS template image, and crop transparent padding for menu bar sizing",
+        );
     }
 }
 

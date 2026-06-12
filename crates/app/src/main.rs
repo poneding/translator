@@ -24,9 +24,16 @@ fn main() {
     tauri::Builder::default()
         .on_window_event(|window, event| {
             if window.label() == "main" {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
+                match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                        let _ = commands::remember_main_window_position(window);
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                    tauri::WindowEvent::Focused(false) => {
+                        let _ = commands::remember_main_window_position(window);
+                    }
+                    _ => {}
                 }
             }
         })
@@ -140,8 +147,23 @@ fn main() {
             commands::check_update,
             commands::download_and_install_update,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            handle_run_event(app, event);
+        });
+}
+
+fn handle_run_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
+    #[cfg(target_os = "macos")]
+    {
+        if let tauri::RunEvent::Reopen { .. } = event {
+            let _ = commands::show_main_window(app, Some("translator://open-main"));
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, event);
 }
 
 fn init_tracing() {

@@ -1,34 +1,33 @@
 import { Download, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useT } from "../../i18n";
-import * as api from "../../ipc/commands";
 import { useConfigStore } from "../../stores/config";
 import type { UpdateStatusDto } from "../../types/bindings";
+import type { UpdateControls } from "./useUpdateControls";
 
-const IDLE_STATUS: UpdateStatusDto = {
-  status: "idle",
-  update: null,
-  error: null,
-  downloaded: null,
-  total: null,
-};
+export function UpdateCheckButton({ controls }: { controls: UpdateControls }) {
+  const t = useT();
+  return (
+    <button
+      className="btn"
+      disabled={controls.checking || controls.installing}
+      onClick={() => void controls.check()}
+    >
+      <RefreshCw
+        size={15}
+        aria-hidden="true"
+        className={controls.checking ? "animate-spin" : ""}
+      />
+      {t("settings-update-check")}
+    </button>
+  );
+}
 
-export function UpdateSection() {
+export function UpdateSection({ controls }: { controls: UpdateControls }) {
   const { config, save } = useConfigStore();
   const t = useT();
-  const [status, setStatus] = useState<UpdateStatusDto>(IDLE_STATUS);
-
-  useEffect(() => {
-    const unlistenPromise = api.onUpdateStatus((payload) => setStatus(payload));
-    return () => {
-      void unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, []);
-
+  const { available, installing, status } = controls;
   const statusText = useMemo(() => updateStatusText(status, t), [status, t]);
-  const checking = status.status === "checking";
-  const installing = status.status === "installing";
-  const available = status.status === "available" && status.update?.available;
 
   if (!config) return null;
 
@@ -75,62 +74,44 @@ export function UpdateSection() {
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        <button
-          className="btn"
-          disabled={checking || installing}
-          onClick={async () => {
-            setStatus({ ...IDLE_STATUS, status: "checking" });
-            const next = await api.checkUpdate(true);
-            setStatus(next);
-          }}
-        >
-          <RefreshCw
-            size={15}
-            aria-hidden="true"
-            className={checking ? "animate-spin" : ""}
-          />
-          {t("settings-update-check")}
-        </button>
-        {available && (
+      {available && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <button
             className="btn btn-primary"
             disabled={installing}
-            onClick={async () => {
-              setStatus({ ...IDLE_STATUS, status: "installing" });
-              const next = await api.downloadAndInstallUpdate();
-              setStatus(next);
-            }}
+            onClick={() => void controls.install()}
           >
             <Download size={15} aria-hidden="true" />
             {t("settings-update-install")}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="rounded-md border border-border bg-bg px-3 py-2 text-sm">
-        <p className={status.status === "failed" ? "text-red-500" : "text-fg"}>
-          {statusText}
-        </p>
-        {status.update?.available && (
-          <div className="mt-2 space-y-1 text-xs text-fg-subtle">
-            <p>
-              {t("settings-update-version", {
-                version: status.update.version ?? "",
-                channel: status.update.channel,
-              })}
-            </p>
-            {status.update.date && (
-              <p>{t("settings-update-date", { date: status.update.date })}</p>
-            )}
-            {status.update.body && (
-              <p className="line-clamp-3 whitespace-pre-wrap">
-                {status.update.body}
+      {status.status !== "idle" && (
+        <div className="rounded-md border border-border bg-bg px-3 py-2 text-sm">
+          <p className={status.status === "failed" ? "text-red-500" : "text-fg"}>
+            {statusText}
+          </p>
+          {status.update?.available && (
+            <div className="mt-2 space-y-1 text-xs text-fg-subtle">
+              <p>
+                {t("settings-update-version", {
+                  version: status.update.version ?? "",
+                  channel: status.update.channel,
+                })}
               </p>
-            )}
-          </div>
-        )}
-      </div>
+              {status.update.date && (
+                <p>{t("settings-update-date", { date: status.update.date })}</p>
+              )}
+              {status.update.body && (
+                <p className="line-clamp-3 whitespace-pre-wrap">
+                  {status.update.body}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -162,6 +143,6 @@ function updateStatusText(
         msg: status.error ?? "unknown",
       });
     default:
-      return t("settings-update-status-idle");
+      return "";
   }
 }

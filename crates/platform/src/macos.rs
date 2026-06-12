@@ -43,12 +43,15 @@ use crate::{Rect, SelectionError, SelectionMonitor};
 // -----------------------------------------------------------------------------
 
 use accessibility_sys::{
-    kAXBoundsForRangeParameterizedAttribute, kAXFocusedUIElementAttribute,
-    kAXSelectedTextAttribute, AXIsProcessTrustedWithOptions, AXUIElementCopyAttributeValue,
-    AXUIElementCopyParameterizedAttributeValue, AXUIElementCreateSystemWide, AXUIElementRef,
+    error_string, kAXBoundsForRangeParameterizedAttribute, kAXErrorAPIDisabled,
+    kAXFocusedUIElementAttribute, kAXSelectedTextAttribute, AXIsProcessTrustedWithOptions,
+    AXUIElementCopyAttributeValue, AXUIElementCopyParameterizedAttributeValue,
+    AXUIElementCreateSystemWide, AXUIElementRef,
 };
 
 const AX_SUCCESS: i32 = 0;
+const CLIPBOARD_COPY_POLL_ATTEMPTS: usize = 10;
+const CLIPBOARD_COPY_POLL_INTERVAL: Duration = Duration::from_millis(40);
 
 /// macOS-specific selection monitor.
 pub struct MacOSSelection;
@@ -86,9 +89,11 @@ unsafe fn copy_attribute_value(
     let mut value: CFTypeRef = std::ptr::null();
     let err = AXUIElementCopyAttributeValue(element, attr_cf.as_concrete_TypeRef(), &mut value);
     if err != AX_SUCCESS {
-        return Err(SelectionError::Platform(format!(
-            "AXUIElementCopyAttributeValue({attribute}) returned {err}"
-        )));
+        return Err(ax_error_to_selection_error(
+            "AXUIElementCopyAttributeValue",
+            attribute,
+            err,
+        ));
     }
     if value.is_null() {
         return Ok(None);
@@ -107,12 +112,19 @@ unsafe fn copy_string_attribute(
     Ok(cf_value_to_string(value))
 }
 
+fn ax_error_to_selection_error(function: &str, attribute: &str, err: i32) -> SelectionError {
+    if err == kAXErrorAPIDisabled {
+        return SelectionError::PermissionDenied;
+    }
+    SelectionError::Platform(format!(
+        "{function}({attribute}) returned {err} ({})",
+        error_string(err),
+    ))
+}
+
 #[async_trait]
 impl SelectionMonitor for MacOSSelection {
     async fn get_selected_text(&self) -> Result<Option<String>, SelectionError> {
-        if !self.is_permission_granted() {
-            return Err(SelectionError::PermissionDenied);
-        }
         unsafe {
             let system = AXUIElementCreateSystemWide();
             if system.is_null() {
@@ -124,7 +136,14 @@ impl SelectionMonitor for MacOSSelection {
             // 1. Focused element
             let focused_value = match copy_attribute_value(system, kAXFocusedUIElementAttribute) {
                 Ok(Some(value)) => value,
-                _ => {
+                Ok(None) => {
+                    // No focused element — no selection. Treat as empty, not an error.
+                    return Ok(None);
+                }
+                Err(SelectionError::PermissionDenied) => {
+                    return Err(SelectionError::PermissionDenied);
+                }
+                Err(_) => {
                     // No focused element — no selection. Treat as empty, not an error.
                     return Ok(None);
                 }
@@ -139,7 +158,9 @@ impl SelectionMonitor for MacOSSelection {
             // 2. Selected text
             match copy_string_attribute(focused, kAXSelectedTextAttribute) {
                 Ok(Some(text)) if !text.trim().is_empty() => Ok(Some(text)),
-                _ => read_selection_by_clipboard(),
+                Ok(_) => read_selection_by_clipboard(),
+                Err(SelectionError::PermissionDenied) => Err(SelectionError::PermissionDenied),
+                Err(_) => read_selection_by_clipboard(),
             }
         }
     }
@@ -229,17 +250,42 @@ impl SelectionMonitor for MacOSSelection {
 fn read_selection_by_clipboard() -> Result<Option<String>, SelectionError> {
     let previous_text = read_clipboard_text();
     copy_selection()?;
-    thread::sleep(Duration::from_millis(120));
 
-    let copied = read_clipboard_text()
-        .map(|text| text.trim().to_string())
-        .filter(|text| !text.is_empty());
+    let copied = wait_for_copied_clipboard_text(
+        previous_text.as_deref(),
+        read_clipboard_text,
+        thread::sleep,
+        CLIPBOARD_COPY_POLL_ATTEMPTS,
+    );
 
     if let Some(text) = previous_text {
         let _ = write_clipboard_text(&text);
     }
 
     Ok(copied)
+}
+
+fn wait_for_copied_clipboard_text(
+    previous_text: Option<&str>,
+    mut read_clipboard_text: impl FnMut() -> Option<String>,
+    mut sleep: impl FnMut(Duration),
+    max_attempts: usize,
+) -> Option<String> {
+    let previous = previous_text.map(str::trim);
+    for attempt in 0..max_attempts {
+        let copied = read_clipboard_text()
+            .map(|text| text.trim().to_string())
+            .filter(|text| !text.is_empty());
+        if let Some(text) = copied {
+            if Some(text.as_str()) != previous {
+                return Some(text);
+            }
+        }
+        if attempt + 1 < max_attempts {
+            sleep(CLIPBOARD_COPY_POLL_INTERVAL);
+        }
+    }
+    None
 }
 
 fn copy_selection() -> Result<(), SelectionError> {
@@ -301,6 +347,17 @@ mod tests {
         let _ = monitor.is_permission_granted();
     }
 
+    #[test]
+    fn ax_api_disabled_error_maps_to_permission_denied() {
+        let error = ax_error_to_selection_error(
+            "AXUIElementCopyAttributeValue",
+            kAXFocusedUIElementAttribute,
+            kAXErrorAPIDisabled,
+        );
+
+        assert!(matches!(error, SelectionError::PermissionDenied));
+    }
+
     // S2: the permission settings URL is the documented one.
     #[test]
     fn open_permission_settings_uses_documented_url() {
@@ -311,16 +368,59 @@ mod tests {
         assert!(URL.contains("Privacy_Accessibility"));
     }
 
-    // S3: get_selected_text without permission returns PermissionDenied.
+    // S3: without permission, get_selected_text either sees the AX permission
+    // denial from the OS or finds no focused selection before AX reports one.
     #[tokio::test]
     async fn get_selected_text_without_permission_denied() {
         let monitor = MacOSSelection::new();
         if !monitor.is_permission_granted() {
             let result = monitor.get_selected_text().await;
-            assert!(matches!(result, Err(SelectionError::PermissionDenied)));
+            assert!(matches!(
+                result,
+                Err(SelectionError::PermissionDenied) | Ok(None)
+            ));
         }
         // If permission IS granted (e.g. developer machine), the call may
         // succeed with Ok(None). Both outcomes are acceptable here; this
         // test only asserts the no-permission path.
+    }
+
+    #[test]
+    fn clipboard_fallback_waits_until_copied_text_replaces_previous_text() {
+        let mut reads = vec![
+            Some("old clipboard".to_string()),
+            Some(" selected text ".to_string()),
+        ]
+        .into_iter();
+        let mut sleeps = 0;
+
+        let copied = wait_for_copied_clipboard_text(
+            Some("old clipboard"),
+            || reads.next().flatten(),
+            |_| sleeps += 1,
+            3,
+        );
+
+        assert_eq!(copied.as_deref(), Some("selected text"));
+        assert_eq!(sleeps, 1);
+    }
+
+    #[test]
+    fn clipboard_fallback_ignores_unchanged_previous_clipboard_text() {
+        let mut reads = vec![
+            Some("old clipboard".to_string()),
+            Some(" old clipboard ".to_string()),
+            Some("old clipboard".to_string()),
+        ]
+        .into_iter();
+
+        let copied = wait_for_copied_clipboard_text(
+            Some("old clipboard"),
+            || reads.next().flatten(),
+            |_| {},
+            3,
+        );
+
+        assert_eq!(copied, None);
     }
 }

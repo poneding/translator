@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useAutoHideScrollbars } from "./hooks/useAutoHideScrollbars";
 import { useTheme } from "./hooks/useTheme";
 import { setLocale, useT } from "./i18n";
 import * as api from "./ipc/commands";
@@ -20,7 +21,11 @@ import { GeneralSection } from "./settings/sections/GeneralSection";
 import { ProxySection } from "./settings/sections/ProxySection";
 import { ServicesSection } from "./settings/sections/ServicesSection";
 import { ShortcutSection } from "./settings/sections/ShortcutSection";
-import { UpdateSection } from "./settings/sections/UpdateSection";
+import {
+  UpdateCheckButton,
+  UpdateSection,
+} from "./settings/sections/UpdateSection";
+import { useUpdateControls } from "./settings/sections/useUpdateControls";
 import { useConfigStore } from "./stores/config";
 
 type SectionId =
@@ -36,10 +41,8 @@ export function SettingsApp() {
   const { config, load, loading, error, setConfig } = useConfigStore();
   const t = useT();
 
-  useTheme(
-    (config?.general.theme as "system" | "light" | "dark" | undefined) ??
-      "system",
-  );
+  useTheme(config?.general.theme as "system" | "light" | "dark" | undefined);
+  useAutoHideScrollbars();
 
   useEffect(() => {
     setLocale(config?.general.app_language ?? "system");
@@ -94,6 +97,7 @@ export function SettingsApp() {
 
 export function SettingsView({ onBack }: { onBack?: () => void }) {
   const t = useT();
+  const updateControls = useUpdateControls();
   const sections: {
     id: SectionId;
     label: string;
@@ -207,8 +211,9 @@ export function SettingsView({ onBack }: { onBack?: () => void }) {
             id="update"
             title={sections[4].title}
             Icon={sections[4].Icon}
+            titleAction={<UpdateCheckButton controls={updateControls} />}
           >
-            <UpdateSection />
+            <UpdateSection controls={updateControls} />
           </SettingsSection>
           <SettingsSection
             id="proxy"
@@ -234,23 +239,28 @@ function SettingsSection({
   id,
   title,
   Icon,
+  titleAction,
   children,
 }: {
   id: string;
   title: string;
   Icon: LucideIcon;
+  titleAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section id={id} className="space-y-3">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
-        <Icon
-          size={18}
-          aria-hidden="true"
-          className="shrink-0 text-fg-subtle"
-        />
-        {title}
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+          <Icon
+            size={18}
+            aria-hidden="true"
+            className="shrink-0 text-fg-subtle"
+          />
+          <span className="min-w-0 truncate">{title}</span>
+        </h2>
+        {titleAction && <div className="shrink-0">{titleAction}</div>}
+      </div>
       <div className="card">{children}</div>
     </section>
   );

@@ -12,7 +12,10 @@
     --border: 224 226 230;
     --scrollbar-thumb: 190 196 206;
     --scrollbar-thumb-hover: 150 158 172;
+    --scrollbar-track: 255 255 255;
+    --scrollbar-size: 10px;
   }
+
   /* BH-11.1: explicit light/dark palettes driven by data-theme on <html>. */
   [data-theme="light"] {
     --bg: 255 255 255;
@@ -23,7 +26,10 @@
     --border: 224 226 230;
     --scrollbar-thumb: 190 196 206;
     --scrollbar-thumb-hover: 150 158 172;
+    --scrollbar-track: 255 255 255;
+    --scrollbar-size: 10px;
   }
+
   [data-theme="dark"] {
     --bg: 20 22 28;
     --bg-subtle: 30 32 38;
@@ -33,7 +39,10 @@
     --border: 48 52 60;
     --scrollbar-thumb: 64 70 82;
     --scrollbar-thumb-hover: 84 92 108;
+    --scrollbar-track: 20 22 28;
+    --scrollbar-size: 10px;
   }
+
   /* BH-11.2: when the user picks "System", we leave the data-theme
      attribute off and let the media query below resolve the palette.
      useTheme() updates data-theme in lockstep with the OS event. */
@@ -47,33 +56,54 @@
       --border: 48 52 60;
       --scrollbar-thumb: 64 70 82;
       --scrollbar-thumb-hover: 84 92 108;
+      --scrollbar-track: 20 22 28;
+      --scrollbar-size: 10px;
     }
   }
+
   * {
-    scrollbar-color: rgb(var(--scrollbar-thumb)) transparent;
+    scrollbar-color: transparent transparent;
     scrollbar-width: thin;
   }
+
   *::-webkit-scrollbar {
-    height: 10px;
-    width: 10px;
+    height: var(--scrollbar-size);
+    width: var(--scrollbar-size);
   }
+
   *::-webkit-scrollbar-track {
-    background: transparent;
+    background-color: transparent;
   }
+
   *::-webkit-scrollbar-thumb {
     background-clip: content-box;
-    background-color: rgb(var(--scrollbar-thumb));
+    background-color: transparent;
     border: 2px solid transparent;
     border-radius: 999px;
   }
-  *::-webkit-scrollbar-thumb:hover {
+
+  *::-webkit-scrollbar-corner {
+    background-color: transparent;
+  }
+
+  *.is-scrolling {
+    scrollbar-color: rgb(var(--scrollbar-thumb)) transparent;
+  }
+
+  *.is-scrolling::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--scrollbar-thumb));
+  }
+
+  *.is-scrolling::-webkit-scrollbar-thumb:hover {
     background-color: rgb(var(--scrollbar-thumb-hover));
   }
+
   html,
   body,
   #root {
     height: 100%;
   }
+
   body {
     font-family: theme("fontFamily.sans");
     -webkit-font-smoothing: antialiased;
@@ -82,100 +112,97 @@
 
 @layer components {
   .app-titlebar {
-    @apply relative grid h-[34px] shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center border-b border-border
-           bg-bg-subtle text-fg select-none;
+    @apply relative grid h-[34px] shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center border-b border-border bg-bg-subtle text-fg select-none;
   }
+
   .app-titlebar-mac {
     @apply grid-cols-[72px_auto_minmax(0,1fr)_auto];
   }
+
   .titlebar-leading {
     @apply z-10 flex items-center gap-1 px-2;
   }
+
   .titlebar-title {
-    @apply pointer-events-none absolute left-1/2 top-1/2 flex max-w-[48%] -translate-x-1/2 -translate-y-1/2
-           items-center justify-center gap-1.5 px-2;
+    @apply pointer-events-none absolute left-1/2 top-1/2 flex max-w-[48%] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-1.5 px-2;
   }
+
   .titlebar-title img {
     @apply h-4 w-4 shrink-0;
   }
+
   .titlebar-title h1 {
     @apply min-w-0 truncate text-sm font-semibold leading-none;
   }
+
   .titlebar-spacer {
     @apply z-0 h-full min-w-0;
   }
+
   .titlebar-actions {
     @apply z-10 flex items-center gap-1 px-2;
   }
+
   .titlebar-icon-btn {
-    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent
-           bg-transparent p-0 text-fg-subtle transition hover:bg-border hover:text-fg
-           focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed
-           disabled:opacity-50;
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-fg-subtle transition hover:bg-border hover:text-fg focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50;
   }
+
   .titlebar-icon-active {
     @apply bg-border text-fg;
   }
+
   .windows-window-controls {
     @apply z-10 flex h-full items-stretch;
   }
+
   .window-control {
-    @apply inline-flex h-[34px] w-11 items-center justify-center text-fg-subtle
-           transition hover:bg-border hover:text-fg focus:outline-none focus:ring-2
-           focus:ring-inset focus:ring-accent/50;
+    @apply inline-flex h-[34px] w-11 items-center justify-center text-fg-subtle transition hover:bg-border hover:text-fg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent/50;
   }
+
   .window-control-close {
     @apply hover:bg-red-500 hover:text-white;
   }
-  .mac-window-controls {
-    @apply z-10 flex h-[34px] items-center gap-2 px-4;
+
+  .mac-traffic-light-spacer {
+    @apply pointer-events-none h-full;
   }
-  .mac-window-control {
-    @apply inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border
-           text-black/0 transition focus:outline-none focus:ring-2 focus:ring-accent/50;
+
+  .main-shell {
+    @apply grid min-h-0 flex-1 gap-4 overflow-hidden p-4;
   }
-  .mac-window-controls:hover .mac-window-control,
-  .mac-window-control:focus-visible {
-    @apply text-black/60;
+
+  .translation-workspace {
+    @apply flex min-h-0 flex-col gap-2;
   }
-  .mac-window-close {
-    @apply border-red-500/70 bg-red-500;
-  }
-  .mac-window-minimize {
-    @apply border-yellow-500/70 bg-yellow-400;
-  }
-  .mac-window-spacer {
-    @apply pointer-events-none border-border bg-border/60;
-  }
+
   .btn {
-    @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border
-           bg-bg-subtle px-3 py-1.5 text-sm font-medium leading-none text-fg
-           transition hover:bg-border focus:outline-none focus:ring-2 focus:ring-accent/50
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-bg-subtle px-3 py-1.5 text-sm font-medium leading-none text-fg transition hover:bg-border focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
   .icon-btn {
-    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border
-           bg-bg-subtle p-0 text-fg transition hover:bg-border focus:outline-none
-           focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-bg-subtle p-0 text-fg transition hover:bg-border focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50;
   }
+
   .btn-primary {
     @apply border-transparent bg-accent text-white hover:bg-accent/90;
   }
+
   .btn-secondary {
     @apply border-border bg-bg-subtle text-fg hover:bg-border;
   }
+
   .btn-ghost {
     @apply border-transparent bg-transparent text-fg-subtle hover:bg-border hover:text-fg;
   }
+
   .language-code-badge {
-    @apply inline-flex h-5 min-w-8 shrink-0 items-center justify-center rounded border border-border
-           bg-bg-subtle px-1 text-[10px] font-semibold leading-none text-fg-subtle;
+    @apply inline-flex h-4 min-w-6 shrink-0 items-center justify-center rounded border border-border bg-bg-subtle px-1 text-[9px] font-semibold leading-none text-fg-subtle;
   }
+
   .checkbox {
-    @apply mt-0.5 h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-border
-           bg-bg transition focus:outline-none focus:ring-2 focus:ring-accent/50
-           disabled:cursor-not-allowed disabled:opacity-50;
+    @apply mt-0.5 h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-border bg-bg transition focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50;
   }
+
   .checkbox:checked {
     @apply border-accent bg-accent;
     background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M3.5 8.2 6.6 11.3 12.5 4.7' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
@@ -183,81 +210,129 @@
     background-repeat: no-repeat;
     background-size: 100% 100%;
   }
+
   .input {
-    @apply w-full rounded-md border border-border bg-bg px-3 py-1.5 text-sm text-fg
-           focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
+    @apply w-full rounded-md border border-border bg-bg px-3 py-1.5 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
   }
+
   .label {
     @apply block text-xs font-medium text-fg-subtle mb-1;
   }
+
   .card {
     @apply rounded-lg border border-border bg-bg-subtle p-4;
   }
+
   .source-editor {
     @apply relative z-0 rounded-lg border border-border bg-bg;
   }
+
   .source-editor:focus-within {
     @apply z-30 border-accent ring-2 ring-accent/30;
   }
+
   .source-editor-textarea {
     @apply block w-full resize-none bg-transparent px-3 pb-12 pt-3 text-sm leading-6 text-fg outline-none;
     min-height: 108px;
     max-height: 156px;
   }
+
   .source-toolbar {
-    @apply absolute inset-x-2 bottom-1.5 z-40 grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-2
-           px-1 py-0;
+    @apply absolute inset-x-2 bottom-1.5 z-40 grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1 py-0;
   }
+
   .source-toolbar-left,
   .source-toolbar-right {
     @apply flex items-center;
   }
+
   .source-toolbar-left {
     @apply min-w-0 gap-1;
   }
+
   .source-toolbar-right {
     @apply shrink-0 gap-2;
   }
+
   .source-audio-controls {
     @apply flex min-w-0 items-center gap-1 overflow-hidden text-xs;
   }
+
   .source-audio-item {
     @apply inline-flex min-w-0 shrink items-center gap-1 whitespace-nowrap rounded-md px-1 text-fg-subtle;
   }
+
   .service-status-row {
     @apply flex min-h-8 items-center justify-between gap-3;
   }
+
   .service-status-services {
     @apply ml-auto inline-flex min-w-0 items-center justify-end gap-2 text-xs text-fg-subtle;
   }
+
+  .service-logo-strip {
+    @apply inline-flex shrink-0 items-center -space-x-1;
+  }
+
+  .service-logo-frame {
+    @apply relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-bg ring-2 ring-bg;
+  }
+
   .source-language-flow {
     @apply flex min-w-0 items-center gap-1.5 text-xs text-fg-subtle;
   }
-  .language-short-code {
-    @apply inline-flex min-w-6 shrink-0 items-center justify-center font-semibold text-fg-subtle;
+
+  .source-language-token {
+    @apply inline-flex min-w-0 max-w-40 shrink items-center gap-1 rounded-md px-1 py-0.5;
   }
+
+  .source-language-name {
+    @apply min-w-0 truncate text-fg-subtle;
+  }
+
+  .language-short-code {
+    @apply inline-flex min-w-5 shrink-0 items-center justify-center text-[10px] font-semibold text-fg-subtle;
+  }
+
   .source-target-select {
     @apply z-50 min-w-12;
     width: fit-content;
-    max-width: min(14rem, 42vw);
+    max-width: min(15rem, 46vw);
   }
+
   .source-target-select .input {
-    @apply h-7 min-w-12 border-transparent bg-transparent px-1.5 py-1 text-xs hover:bg-bg-subtle
-           focus:border-transparent;
+    @apply h-7 min-w-12 border-transparent bg-transparent px-1.5 py-1 text-xs hover:bg-bg-subtle focus:border-transparent;
     width: auto;
     max-width: 100%;
   }
+
   .source-target-select [role="listbox"] {
     width: max-content;
     min-width: 100%;
     max-width: min(16rem, 72vw);
   }
+
+  .results-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto;
+    scrollbar-width: none;
+  }
+
+  .results-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .results-stack {
+    @apply space-y-3;
+  }
+
   .result-card {
     @apply rounded-lg border border-border bg-bg-subtle p-3;
   }
+
   .result-card-refresh {
     @apply opacity-0 pointer-events-none;
   }
+
   .result-card:hover .result-card-refresh,
   .result-card:focus-within .result-card-refresh {
     @apply opacity-100 pointer-events-auto;

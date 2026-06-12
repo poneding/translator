@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, type LucideIcon } from "lucide-react";
+import { platform as getPlatform } from "@tauri-apps/plugin-os";
 
 export interface ComboboxOption {
   Icon?: LucideIcon;
@@ -27,6 +28,7 @@ export function Combobox({
   value: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [showOptionFlag] = useState(() => detectHostPlatform() === "macos");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
   const selected = options.find((option) => option.value === value);
@@ -56,6 +58,7 @@ export function Combobox({
           display={selectedDisplay}
           option={selected}
           fallback={value}
+          showFlag={showOptionFlag}
         />
         <ChevronDown
           size={15}
@@ -83,7 +86,10 @@ export function Combobox({
                   setOpen(false);
                 }}
               >
-                <ComboboxOptionContent option={option} />
+                <ComboboxOptionContent
+                  option={option}
+                  showFlag={showOptionFlag}
+                />
                 {active && <Check size={14} aria-hidden="true" />}
               </button>
             );
@@ -98,10 +104,12 @@ function ComboboxOptionContent({
   display = "full",
   fallback,
   option,
+  showFlag,
 }: {
   display?: "full" | "leading";
   fallback?: string;
   option?: ComboboxOption;
+  showFlag: boolean;
 }) {
   const Icon = option?.Icon;
   if (display === "leading") {
@@ -121,7 +129,7 @@ function ComboboxOptionContent({
           className="shrink-0 text-fg-subtle"
         />
       )}
-      {option?.flag && (
+      {showFlag && option?.flag && (
         <span className="shrink-0 text-sm leading-none">{option.flag}</span>
       )}
       <span className="min-w-0 truncate">{option?.label ?? fallback}</span>
@@ -130,4 +138,16 @@ function ComboboxOptionContent({
       )}
     </span>
   );
+}
+
+function detectHostPlatform() {
+  try {
+    return getPlatform();
+  } catch {
+    const platform = navigator.platform.toLowerCase();
+    if (platform.includes("mac")) return "macos";
+    if (platform.includes("win")) return "windows";
+    if (platform.includes("linux")) return "linux";
+    return "unknown";
+  }
 }

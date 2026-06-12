@@ -105,6 +105,18 @@ pub struct WindowConfig {
     /// Where the main window appears when opened.
     #[serde(default = "default_window_display_position")]
     pub display_position: String,
+    /// Last remembered outer window position in physical screen coordinates.
+    #[serde(default)]
+    pub last_position: Option<WindowPosition>,
+}
+
+/// Physical screen position for the main window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowPosition {
+    /// X coordinate in physical pixels.
+    pub x: i32,
+    /// Y coordinate in physical pixels.
+    pub y: i32,
 }
 
 impl Default for WindowConfig {
@@ -112,6 +124,7 @@ impl Default for WindowConfig {
         Self {
             always_on_top: false,
             display_position: default_window_display_position(),
+            last_position: None,
         }
     }
 }
@@ -337,7 +350,7 @@ fn default_app_language() -> String {
 }
 
 fn default_window_display_position() -> String {
-    "right".to_string()
+    "remember".to_string()
 }
 
 fn default_check_updates_on_startup() -> bool {
@@ -373,7 +386,7 @@ fn normalized_app_language(value: &str) -> String {
 fn normalized_window_display_position(value: &str) -> String {
     normalized_choice(
         value,
-        &["right", "center", "mouse"],
+        &["remember", "right", "center", "mouse"],
         &default_window_display_position(),
     )
 }
@@ -477,7 +490,7 @@ mod tests {
         assert_eq!(normalized.shortcut, "Ctrl+Alt+K");
         assert_eq!(normalized.history.len(), 1);
         assert!(!normalized.window.always_on_top);
-        assert_eq!(normalized.window.display_position, "right");
+        assert_eq!(normalized.window.display_position, "remember");
         assert!(normalized.updates.check_on_startup);
         assert!(!normalized.updates.allow_beta);
         for service_id in ServiceId::all() {
@@ -504,6 +517,13 @@ mod tests {
 
         assert_eq!(normalized.general.theme, "system");
         assert_eq!(normalized.general.app_language, "zh-Hans");
-        assert_eq!(normalized.window.display_position, "right");
+        assert_eq!(normalized.window.display_position, "remember");
+    }
+
+    #[test]
+    fn window_defaults_to_remember_last_position() {
+        let window = WindowConfig::default();
+
+        assert_eq!(window.display_position, "remember");
     }
 }

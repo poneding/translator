@@ -3,6 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (() => {
+        try {
+          const theme = localStorage.getItem("translator-theme");
+          if (theme === "light" || theme === "dark") {
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.style.colorScheme = theme;
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        background-color: rgb(255, 255, 255);
+        --initial-bg: rgb(255, 255, 255);
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        background-color: rgb(255, 255, 255);
+        --initial-bg: rgb(255, 255, 255);
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        background-color: rgb(20, 22, 28);
+        --initial-bg: rgb(20, 22, 28);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          background-color: rgb(20, 22, 28);
+          --initial-bg: rgb(20, 22, 28);
+        }
+      }
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        background-color: var(--initial-bg);
+      }
+      body {
+        margin: 0;
+      }
+    </style>
     <title>Translator</title>
   </head>
   <body class="bg-bg text-fg">

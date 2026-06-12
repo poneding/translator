@@ -24,6 +24,7 @@ import {
   useState,
 } from "react";
 import { Combobox, type ComboboxOption } from "./components/Combobox";
+import { useAutoHideScrollbars } from "./hooks/useAutoHideScrollbars";
 import { useTheme } from "./hooks/useTheme";
 import { setLocale, useT } from "./i18n";
 import {
@@ -70,10 +71,8 @@ export function App() {
   const requestIdRef = useRef<string | null>(null);
   const serviceRequestIdsRef = useRef<Partial<Record<ServiceId, string>>>({});
 
-  useTheme(
-    (config?.general.theme as "system" | "light" | "dark" | undefined) ??
-      "system",
-  );
+  useTheme(config?.general.theme as "system" | "light" | "dark" | undefined);
+  useAutoHideScrollbars();
 
   useEffect(() => {
     setLocale(config?.general.app_language ?? "system");
@@ -149,7 +148,7 @@ export function App() {
   }, [config]);
 
   const targetLanguageOptions = useMemo(
-    () => withCurrentOption(withoutOptionFlags(translationLanguageOptions(t)), to),
+    () => withCurrentOption(translationLanguageOptions(t), to),
     [t, to],
   );
 
@@ -398,11 +397,13 @@ export function App() {
       ) : (
         <main
           className={
-            "grid min-h-0 flex-1 gap-4 p-4 " +
-            (historyOpen ? "grid-cols-[minmax(0,1fr)_280px]" : "grid-cols-1")
+            "main-shell " +
+            (historyOpen
+              ? "main-shell-history grid-cols-[minmax(0,1fr)_280px]"
+              : "grid-cols-1")
           }
         >
-          <section className="flex min-h-0 flex-col gap-3">
+          <section className="translation-workspace">
             <SourceEditor
               busy={busy}
               detectedSource={detectedSource}
@@ -511,7 +512,9 @@ function AppTitleBar({
       className={"app-titlebar " + (isMac ? "app-titlebar-mac" : "")}
       data-tauri-drag-region
     >
-      {isMac && <MacWindowControls />}
+      {isMac && (
+        <div className="mac-traffic-light-spacer" data-tauri-drag-region />
+      )}
       <div className="titlebar-leading">
         <button
           className={
@@ -781,13 +784,14 @@ function ServiceStatusRow({
               "No services enabled. Open Settings to enable at least one.",
             )}
         {enabledServices.length > 0 && (
-          <span className="inline-flex shrink-0 items-center -space-x-1">
+          <span className="service-logo-strip">
             {enabledServices.map((service) => (
-              <ServiceLogo
-                key={service.id}
-                serviceId={service.id}
-                className="h-5 w-5 rounded-full ring-2 ring-bg"
-              />
+              <span key={service.id} className="service-logo-frame">
+                <ServiceLogo
+                  serviceId={service.id}
+                  className="h-5 w-5 rounded-sm"
+                />
+              </span>
             ))}
           </span>
         )}
@@ -808,6 +812,8 @@ function LanguageDirectionControl({
   onTargetChange: (value: string) => void;
 }) {
   const t = useT();
+  const [hostPlatform] = useState<HostPlatform>(() => detectHostPlatform());
+  const showLanguageFlag = hostPlatform === "macos";
   const sourceLanguageParts =
     languagePartsForCode(detectedSource, t) ??
     (detectedSource
@@ -820,17 +826,38 @@ function LanguageDirectionControl({
 
   return (
     <div className="source-language-flow">
-      <span className="language-short-code">{sourceLanguageParts.leading}</span>
+      <LanguageDirectionToken
+        parts={sourceLanguageParts}
+        showFlag={showLanguageFlag}
+      />
       <ArrowRight size={14} aria-hidden="true" className="shrink-0" />
       <Combobox
         ariaLabel={t("main-target-language", null, "Target")}
         className="source-target-select"
         options={targetLanguageOptions}
-        selectedDisplay="leading"
+        selectedDisplay="full"
         value={targetLanguage}
         onChange={onTargetChange}
       />
     </div>
+  );
+}
+
+function LanguageDirectionToken({
+  parts,
+  showFlag,
+}: {
+  parts: { flag: string; leading: string; label: string };
+  showFlag: boolean;
+}) {
+  return (
+    <span className="source-language-token">
+      {showFlag && parts.flag && (
+        <span className="shrink-0 text-sm leading-none">{parts.flag}</span>
+      )}
+      <span className="source-language-name">{parts.label}</span>
+      <span className="language-code-badge">{parts.leading}</span>
+    </span>
   );
 }
 
@@ -889,15 +916,17 @@ function ResultsPanel({
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
-      {outcomes.map((outcome) => (
-        <ResultCard
-          key={outcome.service_id}
-          outcome={outcome}
-          refreshing={refreshingServices.has(outcome.service_id)}
-          onRefresh={() => onRefreshService(outcome.service_id)}
-        />
-      ))}
+    <div className="results-scroll">
+      <div className="results-stack">
+        {outcomes.map((outcome) => (
+          <ResultCard
+            key={outcome.service_id}
+            outcome={outcome}
+            refreshing={refreshingServices.has(outcome.service_id)}
+            onRefresh={() => onRefreshService(outcome.service_id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -1240,34 +1269,6 @@ function HistoryPanel({
   );
 }
 
-function MacWindowControls() {
-  const t = useT();
-  return (
-    <div className="mac-window-controls">
-      <button
-        className="mac-window-control mac-window-close"
-        onClick={() => void runWindowAction((win) => win.close())}
-        title={t("common-close", null, "Close")}
-        aria-label={t("common-close", null, "Close")}
-      >
-        <X size={8} aria-hidden="true" />
-      </button>
-      <button
-        className="mac-window-control mac-window-minimize"
-        onClick={() => void runWindowAction((win) => win.minimize())}
-        title="Minimize"
-        aria-label="Minimize"
-      >
-        <Minus size={8} aria-hidden="true" />
-      </button>
-      <span
-        className="mac-window-control mac-window-spacer"
-        aria-hidden="true"
-      />
-    </div>
-  );
-}
-
 function WindowsWindowControls() {
   const t = useT();
   return (
@@ -1333,10 +1334,6 @@ function withCurrentOption(
 ): ComboboxOption[] {
   if (options.some((option) => option.value === value)) return options;
   return [...options, { value, label: value }];
-}
-
-function withoutOptionFlags(options: ComboboxOption[]): ComboboxOption[] {
-  return options.map(({ flag: _flag, ...option }) => option);
 }
 
 function targetLanguageFromOutcomes(

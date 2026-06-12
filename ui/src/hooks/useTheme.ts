@@ -21,9 +21,24 @@ export type ResolvedTheme = "light" | "dark";
 export type ThemeChoice = ResolvedTheme | "system";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
+const THEME_STORAGE_KEY = "translator-theme";
+
+function cacheTheme(choice: ThemeChoice): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (choice === "system") {
+      window.localStorage.removeItem(THEME_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(THEME_STORAGE_KEY, choice);
+    }
+  } catch {
+    // Storage can be unavailable in restricted WebViews; CSS still handles OS theme.
+  }
+}
 
 function apply(choice: ThemeChoice, os: ResolvedTheme | null): void {
   if (typeof document === "undefined") return;
+  cacheTheme(choice);
   const el = document.documentElement;
   if (choice === "system") {
     // No data-theme → CSS media query decides the palette.
@@ -32,11 +47,16 @@ function apply(choice: ThemeChoice, os: ResolvedTheme | null): void {
     else delete el.dataset.osTheme;
   } else {
     el.dataset.theme = choice;
+    delete el.dataset.osTheme;
   }
+  const resolved = choice === "system" ? os : choice;
+  el.style.colorScheme = resolved ?? "";
 }
 
-export function useTheme(choice: ThemeChoice): void {
+export function useTheme(choice: ThemeChoice | null | undefined): void {
   useEffect(() => {
+    if (!choice) return;
+
     if (
       typeof window === "undefined" ||
       typeof window.matchMedia !== "function"

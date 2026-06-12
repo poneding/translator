@@ -11,7 +11,7 @@ import { COMMON_LANGUAGES, commonLanguageOptions } from "../../i18n/languages";
 const BCP47_RE =
   /^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))*$/;
 
-type WindowDisplayPosition = "right" | "center" | "mouse";
+type WindowDisplayPosition = "remember" | "right" | "center" | "mouse";
 
 export function GeneralSection() {
   const { config, save } = useConfigStore();
@@ -28,6 +28,14 @@ export function GeneralSection() {
     config.window.display_position,
   );
   const windowDisplayPositionOptions = [
+    {
+      value: "remember",
+      label: t(
+        "settings-general-window-position-remember",
+        null,
+        "Remember last position",
+      ),
+    },
     {
       value: "right",
       label: t("settings-general-window-position-right", null, "Top right"),
@@ -265,5 +273,7 @@ function languageKey(language: string): string {
 function normalizeWindowDisplayPosition(
   value: string | undefined,
 ): WindowDisplayPosition {
-  return value === "center" || value === "mouse" ? value : "right";
+  return value === "right" || value === "center" || value === "mouse"
+    ? value
+    : "remember";
 }

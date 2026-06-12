@@ -99,6 +99,7 @@ settings-general-auto-copy = Auto-copy first successful result
 settings-general-clipboard-hotkey = Use clipboard text when hotkey opens with no selection
 settings-general-launch-at-startup = Launch at startup
 settings-general-window-position = Default open position
+settings-general-window-position-remember = Remember last position
 settings-general-window-position-right = Top right
 settings-general-window-position-center = Center
 settings-general-window-position-mouse = Follow mouse
