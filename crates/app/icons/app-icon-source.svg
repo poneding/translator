@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="appIconGradient" x1="128" y1="112" x2="896" y2="912" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#21D6B7"/>
+      <stop offset="0.52" stop-color="#367DFF"/>
+      <stop offset="1" stop-color="#715BFF"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="220" fill="url(#appIconGradient)"/>
+  <g transform="translate(202 202) scale(25.84)" stroke="#FFFFFF" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m5 8 6 6"/>
+    <path d="m4 14 6-6 2-3"/>
+    <path d="M2 5h12"/>
+    <path d="M7 2h1"/>
+    <path d="m22 22-5-10-5 10"/>
+    <path d="M14 18h6"/>
+  </g>
+</svg>
