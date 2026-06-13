@@ -30,7 +30,7 @@ use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
 use core_foundation::string::{CFString, CFStringRef};
-use core_graphics::event::CGEvent;
+use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, KeyCode};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use core_graphics::geometry::CGPoint;
 use std::io::Write;
@@ -323,18 +323,23 @@ fn wait_for_copied_clipboard_text(
 }
 
 fn copy_selection() -> Result<(), SelectionError> {
-    let status = Command::new("osascript")
-        .arg("-e")
-        .arg(r#"tell application "System Events" to keystroke "c" using command down"#)
-        .status()
-        .map_err(|e| SelectionError::Platform(format!("osascript copy: {e}")))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(SelectionError::Platform(format!(
-            "osascript copy exited with {status}"
-        )))
-    }
+    let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+        .map_err(|_| SelectionError::Platform("CGEventSource::new failed".to_string()))?;
+    let flags = CGEventFlags::CGEventFlagCommand;
+
+    let key_down =
+        CGEvent::new_keyboard_event(source.clone(), KeyCode::ANSI_C, true).map_err(|_| {
+            SelectionError::Platform("CGEvent::new_keyboard_event down failed".to_string())
+        })?;
+    let key_up = CGEvent::new_keyboard_event(source, KeyCode::ANSI_C, false).map_err(|_| {
+        SelectionError::Platform("CGEvent::new_keyboard_event up failed".to_string())
+    })?;
+
+    key_down.set_flags(flags);
+    key_up.set_flags(flags);
+    key_down.post(CGEventTapLocation::HID);
+    key_up.post(CGEventTapLocation::HID);
+    Ok(())
 }
 
 fn read_clipboard_text() -> Option<String> {
@@ -400,6 +405,13 @@ mod tests {
         const URL: &str =
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
         assert!(URL.contains("Privacy_Accessibility"));
+    }
+
+    #[test]
+    fn clipboard_fallback_does_not_require_system_events_automation() {
+        let source = include_str!("macos.rs");
+        assert!(!source.contains(concat!("System ", "Events")));
+        assert!(!source.contains(concat!("osa", "script")));
     }
 
     // S3: without permission, get_selected_text either sees the AX permission
