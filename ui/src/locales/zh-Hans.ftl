@@ -51,6 +51,7 @@ main-window-title = 翻译
 main-window-loading = 翻译中…
 main-window-empty-selection = 未选中文字
 main-permission-denied = Translator 需要获取「辅助功能」权限
+main-macos-signature-error = 此 macOS 版本未使用稳定身份签名。请安装已签名版本，然后在「辅助功能」中重新启用 Translator。
 common-open-settings = 打开设置
 common-copy = 复制
 common-copied = 已复制

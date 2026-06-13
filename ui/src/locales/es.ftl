@@ -51,6 +51,7 @@ main-window-title = Translation
 main-window-loading = Translating…
 main-window-empty-selection = No text selected
 main-permission-denied = Translator needs the Accessibility permission
+main-macos-signature-error = This macOS build is not signed with a stable identity. Install a signed build, then re-enable Accessibility for Translator.
 common-open-settings = Open Settings
 common-copy = Copy
 common-copied = Copied

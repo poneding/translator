@@ -93,6 +93,7 @@ hotkey, or first window paint. Updates are never installed silently; click
 | Symptom | Fix |
 | --- | --- |
 | Main window says "Accessibility permission" | macOS: grant it in System Settings (see above). |
+| Accessibility is enabled but Translator still says it needs permission | macOS: install a Developer ID signed build. Ad-hoc or unsigned builds can lose their TCC identity after updates even though System Settings still shows Translator as enabled. |
 | Hotkey opens an empty source editor | Select text before pressing the hotkey, or enable clipboard fallback in Settings -> General. |
 | DeepL returns 403 | Free and Pro keys use different endpoints; the service auto-selects, but if you have a Pro key, set `endpoint: "pro"` in options. |
 | Google returns 403 | Make sure Cloud Translation API is enabled for your GCP project. |

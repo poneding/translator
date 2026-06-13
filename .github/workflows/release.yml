@@ -17,12 +17,24 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY_B64) {
             throw "TAURI_SIGNING_PRIVATE_KEY_B64 is required to create updater artifacts"
           }
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
             throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is required to create updater artifacts"
+          }
+          if (-not $env:APPLE_CERTIFICATE) {
+            throw "APPLE_CERTIFICATE is required so macOS Accessibility grants survive app updates"
+          }
+          if (-not $env:APPLE_CERTIFICATE_PASSWORD) {
+            throw "APPLE_CERTIFICATE_PASSWORD is required to import the macOS signing certificate"
+          }
+          if (-not $env:APPLE_SIGNING_IDENTITY) {
+            throw "APPLE_SIGNING_IDENTITY is required for macOS code signing"
           }
 
           try {
@@ -229,11 +241,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_PROVIDER_SHORT_NAME: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
         with:
           projectPath: .
           args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
           releaseId: ${{ needs.create-release.outputs.release_id }}
+
+      - name: Verify macOS code signature
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          app_path="$(find target -path '*/bundle/macos/Translator.app' -type d -print -quit)"
+          if [[ -z "$app_path" ]]; then
+            echo "Translator.app was not found under target/*/bundle/macos" >&2
+            exit 1
+          fi
+          scripts/macos-sign-app.sh --verify-only "$app_path"
 
   publish-release:
     name: publish-release

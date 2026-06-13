@@ -980,9 +980,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        resolve_main_window_position, should_position_main_window_on_show, DeleteApiKeyArgs,
-        HasApiKeyArgs, MainWindowWorkArea, PhysicalPosition, PhysicalSize, SetApiKeyArgs,
-        WINDOW_EDGE_MARGIN,
+        macos_designated_requirement_is_cdhash_only, resolve_main_window_position,
+        should_position_main_window_on_show, DeleteApiKeyArgs, HasApiKeyArgs, MainWindowWorkArea,
+        PhysicalPosition, PhysicalSize, SetApiKeyArgs, WINDOW_EDGE_MARGIN,
     };
     use translator_core::config::WindowPosition;
 
@@ -1064,6 +1064,69 @@ mod tests {
                 && source
                     .contains("commands::show_main_window(app, Some(\"translator://open-main\"))"),
             "macOS Dock reopen should route through the normal main-window show path",
+        );
+    }
+
+    #[test]
+    fn macos_cdhash_only_requirement_is_unstable_for_tcc() {
+        let ad_hoc_requirement = r#"Executable=/Applications/Translator.app/Contents/MacOS/translator-app
+# designated => cdhash H"43048cea4985caba72b8373a0694923c9f21a0b7""#;
+
+        assert!(macos_designated_requirement_is_cdhash_only(
+            ad_hoc_requirement
+        ));
+    }
+
+    #[test]
+    fn macos_certificate_requirement_is_not_cdhash_only() {
+        let developer_id_requirement = r#"Executable=/Applications/Translator.app/Contents/MacOS/translator-app
+# designated => identifier "dev.translator.desktop" and anchor apple generic and certificate leaf[subject.OU] = TEAMID1234"#;
+
+        assert!(!macos_designated_requirement_is_cdhash_only(
+            developer_id_requirement
+        ));
+    }
+
+    #[test]
+    fn release_workflow_requires_stable_macos_code_signing() {
+        let workflow_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.github/workflows/release.yml")
+            .canonicalize()
+            .expect("release workflow path should resolve");
+        let workflow =
+            fs::read_to_string(workflow_path).expect("release workflow should be readable");
+
+        for required in [
+            "APPLE_CERTIFICATE is required so macOS Accessibility grants survive app updates",
+            "APPLE_CERTIFICATE_PASSWORD is required to import the macOS signing certificate",
+            "APPLE_SIGNING_IDENTITY is required for macOS code signing",
+            "Verify macOS code signature",
+            "scripts/macos-sign-app.sh --verify-only",
+        ] {
+            assert!(
+                workflow.contains(required),
+                "release workflow must contain {required:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn macos_signing_script_rejects_cdhash_only_apps() {
+        let script_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../scripts/macos-sign-app.sh")
+            .canonicalize()
+            .expect("macOS signing script path should resolve");
+        let script =
+            fs::read_to_string(script_path).expect("macOS signing script should be readable");
+
+        assert!(
+            script.contains("cdhash H\\\"") || script.contains("cdhash H\""),
+            "signing script should inspect designated requirements for cdhash-only signatures",
+        );
+        assert!(
+            script.contains("macOS designated requirement is cdhash-only")
+                && script.contains("ad-hoc signing is not stable enough"),
+            "signing script must reject signatures that will break TCC grants",
         );
     }
 
@@ -1817,8 +1880,67 @@ impl SelectionErrorExt for SelectionError {
 
 fn selection_error_payload(error: &SelectionError) -> String {
     match error {
-        SelectionError::PermissionDenied => "permission_denied".to_string(),
+        SelectionError::PermissionDenied => permission_denied_payload(),
         SelectionError::Empty => "empty".to_string(),
         _ => format!("{}:{}", error.code(), error),
     }
+}
+
+fn permission_denied_payload() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        if macos_current_app_is_cdhash_only_signed() {
+            return "macos_unstable_signature".to_string();
+        }
+    }
+
+    "permission_denied".to_string()
+}
+
+#[cfg(target_os = "macos")]
+fn macos_current_app_is_cdhash_only_signed() -> bool {
+    let Some(path) = macos_current_app_or_exe_path() else {
+        return false;
+    };
+    let output = match Command::new("/usr/bin/codesign")
+        .arg("-dr")
+        .arg("-")
+        .arg(&path)
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) => {
+            tracing::warn!(error = %error, "could not inspect macOS code signature");
+            return false;
+        }
+    };
+
+    let mut requirement = String::from_utf8_lossy(&output.stderr).to_string();
+    requirement.push_str(&String::from_utf8_lossy(&output.stdout));
+    let cdhash_only = macos_designated_requirement_is_cdhash_only(&requirement);
+    if cdhash_only {
+        tracing::warn!(
+            path = %path.display(),
+            requirement = %requirement.trim(),
+            "macOS accessibility was denied for a cdhash-only signed app; the TCC grant may be stale after an update"
+        );
+    }
+    cdhash_only
+}
+
+#[cfg(target_os = "macos")]
+fn macos_current_app_or_exe_path() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    for ancestor in exe.ancestors() {
+        if ancestor.extension().and_then(|ext| ext.to_str()) == Some("app") {
+            return Some(ancestor.to_path_buf());
+        }
+    }
+    Some(exe)
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn macos_designated_requirement_is_cdhash_only(requirement: &str) -> bool {
+    let normalized = requirement.trim();
+    normalized.contains("cdhash H\"") && !normalized.contains("identifier \"")
 }

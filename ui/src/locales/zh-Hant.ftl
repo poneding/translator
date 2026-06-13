@@ -51,6 +51,7 @@ main-window-title = Translation
 main-window-loading = Translating…
 main-window-empty-selection = No text selected
 main-permission-denied = Translator needs the Accessibility permission
+main-macos-signature-error = 此 macOS 版本未使用穩定身分簽名。請安裝已簽名版本，然後在「輔助使用」中重新啟用 Translator。
 common-open-settings = Open Settings
 common-copy = Copy
 common-copied = Copied

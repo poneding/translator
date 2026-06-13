@@ -864,6 +864,7 @@ function LanguageDirectionToken({
 function TranslationErrorPanel({ message }: { message: string }) {
   const t = useT();
   const isPermission = message === "permission_denied";
+  const isMacosSignature = message === "macos_unstable_signature";
   return (
     <div className="rounded-lg border border-red-500 bg-red-500/10 p-3 text-sm text-red-500">
       <div className="flex flex-wrap items-center gap-2">
@@ -874,9 +875,15 @@ function TranslationErrorPanel({ message }: { message: string }) {
                 null,
                 "Translator needs the Accessibility permission",
               )
+            : isMacosSignature
+              ? t(
+                  "main-macos-signature-error",
+                  null,
+                  "This macOS build is not signed with a stable identity. Install a signed build, then re-enable Accessibility for Translator.",
+                )
             : message}
         </span>
-        {isPermission && (
+        {(isPermission || isMacosSignature) && (
           <button
             className="btn btn-ghost !h-7 border-red-500/30 text-red-500 hover:bg-red-500/10"
             onClick={() => void api.openPermissionSettings()}
@@ -1463,6 +1470,7 @@ function detectLanguageHint(text: string): string | null {
 
 function hotkeyErrorMessage(error: string, t: TFunction): string {
   if (error === "permission_denied") return "permission_denied";
+  if (error === "macos_unstable_signature") return "macos_unstable_signature";
   if (error.startsWith("clipboard:")) {
     return t(
       "main-error-clipboard",

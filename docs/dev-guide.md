@@ -18,6 +18,10 @@ cargo tauri dev
 
 # release build
 cargo tauri build
+
+# macOS only: verify the .app is signed with a stable identity before testing
+# Accessibility/hotkey behavior.
+scripts/macos-sign-app.sh --verify-only target/release/bundle/macos/Translator.app
 ```
 
 ## Code style

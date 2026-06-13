@@ -3,8 +3,8 @@
 > Current release line: v0.2.0.
 >
 > Tauri updater artifacts are generated and signed during release builds.
-> Platform installer/app code signing is still a future hardening task; current
-> artifacts may still show operating-system trust prompts.
+> macOS app bundles must also be signed with a stable code-signing identity so
+> Accessibility (TCC) grants survive app updates.
 
 ## 1. Cutting a release
 
@@ -33,17 +33,34 @@ a local `git-cliff` binary and falls back to Docker.
 
 ## 2. Code signing — macOS
 
-Current status: ad-hoc signed only. First launch shows the standard
-"unidentified developer" Gatekeeper prompt; users must right-click → Open
-the first time. Documented in `docs/user-guide.md`.
+macOS releases are release-blocked unless the signing secrets are present:
 
-Future plan:
-- Provision an Apple Developer ID Application certificate.
-- Store the cert + `.p12` password in GitHub Actions secrets:
-  - `APPLE_CERT_P12_BASE64` — base64 of the `.p12`
-  - `APPLE_CERT_PASSWORD` — password for the `.p12`
-  - `APPLE_SIGNING_IDENTITY` — `Developer ID Application: <Team Name> (<TEAMID>)`
-  - `APPLE_ID` + `APPLE_PASSWORD` (app-specific) for notarization
+- `APPLE_CERTIFICATE` — base64 of the Developer ID Application `.p12`
+- `APPLE_CERTIFICATE_PASSWORD` — password for the `.p12`
+- `APPLE_SIGNING_IDENTITY` — `Developer ID Application: <Team Name> (<TEAMID>)`
+- `APPLE_PROVIDER_SHORT_NAME` — optional provider short name for notarization
+
+Do not ship ad-hoc signed macOS artifacts. Accessibility grants are matched by
+TCC against the app's designated code requirement; ad-hoc signatures commonly
+produce cdhash-only requirements, so an update can appear enabled in System
+Settings while the new binary is denied at runtime.
+
+For local verification or re-signing an installed app:
+
+```bash
+APPLE_SIGNING_IDENTITY="Developer ID Application: Example (TEAMID)" \
+scripts/macos-sign-app.sh /Applications/Translator.app
+
+# Local development/self-use when no Developer ID certificate is installed.
+# The generated certificate is stored and reused so the TCC identity stays stable.
+scripts/macos-sign-app.sh --local-dev-identity /Applications/Translator.app
+
+scripts/macos-sign-app.sh --verify-only /Applications/Translator.app
+```
+
+Future hardening:
+- Add notarization credentials (`APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+  or App Store Connect API key secrets).
 - Add the `tauri-apps/tauri-action` notarization step in `release.yml`.
 - Add a notarize hook in `tauri.conf.json` `bundle.macOS.entitlements` / `exceptionDomain`.
 
@@ -80,7 +97,7 @@ each platform:
 
 | Platform | Check |
 | --- | --- |
-| macOS | Drag `.dmg` → Applications, launch, grant Accessibility, press hotkey, translate "Hello world", copy. |
+| macOS | Verify `scripts/macos-sign-app.sh --verify-only /Applications/Translator.app`, launch, grant Accessibility, press hotkey, translate "Hello world", copy. |
 | Windows | Run the `.msi` installer, launch, press hotkey, translate, copy. |
 | Linux (Ubuntu 22.04) | `sudo dpkg -i translator_X.Y.Z_amd64.deb && apt-get install -f`, launch, hotkey, translate, copy. |
 
