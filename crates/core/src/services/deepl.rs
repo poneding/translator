@@ -366,15 +366,14 @@ fn deepl_rpc_body(payload: serde_json::Value, request_id: i64) -> ServiceResult<
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use reqwest::Client;
     use serde_json::json;
     use wiremock::matchers::{body_string_contains, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use crate::TranslationService;
     use crate::error::ServiceError;
     use crate::model::{ServiceId, TranslateRequest};
     use crate::service::ServiceConfig;
-    use crate::TranslationService;
 
     use super::DeepLService;
 
@@ -419,7 +418,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hello, world!", "DE");
         let result = DeepLService
-            .translate(&req, &cfg, Some("test-key"), &Client::new())
+            .translate(&req, &cfg, Some("test-key"), &crate::http::test_client())
             .await
             .expect("translate should succeed");
 
@@ -447,7 +446,7 @@ mod tests {
             to: "DE".into(),
         };
         let _ = DeepLService
-            .translate(&req, &cfg, Some("k"), &Client::new())
+            .translate(&req, &cfg, Some("k"), &crate::http::test_client())
             .await
             .unwrap();
     }
@@ -472,7 +471,7 @@ mod tests {
             .await;
 
         let result = DeepLService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .expect("web fallback should work without key");
 
@@ -496,7 +495,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "DE");
         let err = DeepLService
-            .translate(&req, &cfg, Some("bad"), &Client::new())
+            .translate(&req, &cfg, Some("bad"), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -522,7 +521,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "DE");
         let err = DeepLService
-            .translate(&req, &cfg, Some("k"), &Client::new())
+            .translate(&req, &cfg, Some("k"), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -552,7 +551,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "DE");
         let err = DeepLService
-            .translate(&req, &cfg, Some("k"), &Client::new())
+            .translate(&req, &cfg, Some("k"), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -574,7 +573,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "DE");
         let err = DeepLService
-            .translate(&req, &cfg, Some("k"), &Client::new())
+            .translate(&req, &cfg, Some("k"), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(

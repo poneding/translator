@@ -283,7 +283,7 @@ fn api_key_for_service(
 }
 
 fn client_for_config(cfg: &Config) -> reqwest::Result<reqwest::Client> {
-    let mut builder = reqwest::Client::builder()
+    let mut builder = crate::http::client_builder()
         .user_agent(concat!("translator/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(5));
 

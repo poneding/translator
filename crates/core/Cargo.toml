@@ -9,6 +9,7 @@ description = "Pure-Rust business core: translation services, config, secrets, m
 [dependencies]
 async-trait = { workspace = true }
 reqwest = { workspace = true }
+rustls = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -16,15 +17,16 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 keyring = { workspace = true }
+keyring-core = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
-uuid = { version = "1.11", features = ["v4"] }
-hmac = "0.12"
-sha2 = "0.10"
-aes = "0.8"
+uuid = { version = "1.23", features = ["v4"] }
+hmac = "0.13"
+sha2 = "0.11"
+aes = "0.9"
 base64 = "0.22"
-cbc = { version = "0.1", features = ["alloc", "block-padding"] }
-md5 = "0.7"
+cbc = { version = "0.2", features = ["alloc", "block-padding"] }
+md5 = "0.8"
 
 # i18n: enable `rust_i18n` macro OR use fluent directly.
 # For v1 we keep it trait-based; frontend handles UI strings via fluent .ftl.

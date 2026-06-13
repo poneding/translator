@@ -17,17 +17,17 @@ use async_trait::async_trait;
 use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
-use windows::core::{Interface, BSTR};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+    CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
 };
 use windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, IUIAutomationTextPattern, IUIAutomationTextRange,
     IUIAutomationTextRangeArray, UIA_TextPatternId,
 };
-use windows::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYEVENTF_KEYUP, VK_C, VK_CONTROL};
+use windows::Win32::UI::Input::KeyboardAndMouse::{KEYEVENTF_KEYUP, VK_C, VK_CONTROL, keybd_event};
 use windows::Win32::UI::WindowsAndMessaging::GetPhysicalCursorPos;
+use windows::core::{BSTR, Interface};
 
 use crate::{Rect, SelectionError, SelectionMonitor};
 
@@ -44,8 +44,7 @@ fn rect_from_uia_slice(_rects: &[f64]) -> Option<Rect> {
 
 /// Convert a `BSTR` to an owned `String` (UTF-16 LE → UTF-8, lossy).
 fn bstr_to_string(bstr: &BSTR) -> String {
-    let wide: &[u16] = bstr.as_wide();
-    String::from_utf16_lossy(wide)
+    String::from_utf16_lossy(bstr)
 }
 
 // ---------------------------------------------------------------------------

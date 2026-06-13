@@ -286,15 +286,14 @@ impl TranslationService for OpenAIService {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use reqwest::Client;
     use serde_json::json;
     use wiremock::matchers::{body_string_contains, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use crate::TranslationService;
     use crate::error::ServiceError;
     use crate::model::{ServiceId, TranslateRequest};
     use crate::service::ServiceConfig;
-    use crate::TranslationService;
 
     use super::OpenAIService;
 
@@ -345,7 +344,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let res = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap();
         assert_eq!(res.text, "你好");
@@ -371,7 +370,7 @@ mod tests {
             to: "fr".to_string(),
         };
         let res = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap();
         assert_eq!(res.text, "Bonjour le monde");
@@ -392,7 +391,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::MissingCredentials(ref s) if s.contains("apiKey")));
@@ -421,7 +420,7 @@ mod tests {
         // the MissingCredentials branch is NOT taken when baseUrl is empty.
         let _ = server; // silence unused
         let result = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await;
         if let Err(ServiceError::MissingCredentials(s)) = result {
             panic!("empty baseUrl should fall back to preset, got MissingCredentials({s})")
@@ -489,7 +488,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -518,7 +517,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -544,7 +543,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -570,7 +569,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));
@@ -595,7 +594,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));
@@ -618,7 +617,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));
@@ -641,7 +640,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = OpenAIService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));

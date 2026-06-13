@@ -45,10 +45,10 @@ use crate::{Rect, SelectionError, SelectionMonitor};
 // -----------------------------------------------------------------------------
 
 use accessibility_sys::{
-    error_string, kAXBoundsForRangeParameterizedAttribute, kAXErrorAPIDisabled,
-    kAXFocusedUIElementAttribute, kAXSelectedTextAttribute, kAXTrustedCheckOptionPrompt,
     AXIsProcessTrustedWithOptions, AXUIElementCopyAttributeValue,
     AXUIElementCopyParameterizedAttributeValue, AXUIElementCreateSystemWide, AXUIElementRef,
+    error_string, kAXBoundsForRangeParameterizedAttribute, kAXErrorAPIDisabled,
+    kAXFocusedUIElementAttribute, kAXSelectedTextAttribute, kAXTrustedCheckOptionPrompt,
 };
 
 const AX_SUCCESS: i32 = 0;
@@ -101,7 +101,7 @@ unsafe fn cf_value_to_string(value: CFTypeRef) -> Option<String> {
         return None;
     }
     let cf_string = value as CFStringRef;
-    let s: CFString = CFString::wrap_under_create_rule(cf_string);
+    let s: CFString = unsafe { CFString::wrap_under_create_rule(cf_string) };
     Some(s.to_string())
 }
 
@@ -113,7 +113,9 @@ unsafe fn copy_attribute_value(
 ) -> Result<Option<CFTypeRef>, SelectionError> {
     let attr_cf = CFString::new(attribute);
     let mut value: CFTypeRef = std::ptr::null();
-    let err = AXUIElementCopyAttributeValue(element, attr_cf.as_concrete_TypeRef(), &mut value);
+    let err = unsafe {
+        AXUIElementCopyAttributeValue(element, attr_cf.as_concrete_TypeRef(), &mut value)
+    };
     if err != AX_SUCCESS {
         return Err(ax_error_to_selection_error(
             "AXUIElementCopyAttributeValue",
@@ -132,10 +134,10 @@ unsafe fn copy_string_attribute(
     element: AXUIElementRef,
     attribute: &str,
 ) -> Result<Option<String>, SelectionError> {
-    let Some(value) = copy_attribute_value(element, attribute)? else {
+    let Some(value) = (unsafe { copy_attribute_value(element, attribute) })? else {
         return Ok(None);
     };
-    Ok(cf_value_to_string(value))
+    Ok(unsafe { cf_value_to_string(value) })
 }
 
 fn ax_error_to_selection_error(function: &str, attribute: &str, err: i32) -> SelectionError {
@@ -308,10 +310,10 @@ fn wait_for_copied_clipboard_text(
         let copied = read_clipboard_text()
             .map(|text| text.trim().to_string())
             .filter(|text| !text.is_empty());
-        if let Some(text) = copied {
-            if Some(text.as_str()) != previous {
-                return Some(text);
-            }
+        if let Some(text) = copied
+            && Some(text.as_str()) != previous
+        {
+            return Some(text);
         }
         if attempt + 1 < max_attempts {
             sleep(CLIPBOARD_COPY_POLL_INTERVAL);

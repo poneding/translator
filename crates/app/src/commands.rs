@@ -541,13 +541,12 @@ fn target_monitor<R: Runtime>(
     win: &WebviewWindow<R>,
     cursor: Option<PhysicalPosition<f64>>,
 ) -> Result<Option<Monitor>, String> {
-    if let Some(cursor) = cursor {
-        if let Some(monitor) = app
+    if let Some(cursor) = cursor
+        && let Some(monitor) = app
             .monitor_from_point(cursor.x, cursor.y)
             .map_err(|e| e.to_string())?
-        {
-            return Ok(Some(monitor));
-        }
+    {
+        return Ok(Some(monitor));
     }
     if let Some(monitor) = win.current_monitor().map_err(|e| e.to_string())? {
         return Ok(Some(monitor));
@@ -810,10 +809,10 @@ pub(crate) async fn run_startup_update_check<R: Runtime>(app: AppHandle<R>) {
         return;
     }
     let status = check_update_inner(&app, &cfg).await;
-    if status.status == "failed" {
-        if let Some(error) = &status.error {
-            tracing::warn!(error = %error, "startup update check failed");
-        }
+    if status.status == "failed"
+        && let Some(error) = &status.error
+    {
+        tracing::warn!(error = %error, "startup update check failed");
     }
     emit_update_status(&app, status);
 }
@@ -980,9 +979,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        macos_designated_requirement_is_cdhash_only, resolve_main_window_position,
-        should_position_main_window_on_show, DeleteApiKeyArgs, HasApiKeyArgs, MainWindowWorkArea,
-        PhysicalPosition, PhysicalSize, SetApiKeyArgs, WINDOW_EDGE_MARGIN,
+        DeleteApiKeyArgs, HasApiKeyArgs, MainWindowWorkArea, PhysicalPosition, PhysicalSize,
+        SetApiKeyArgs, WINDOW_EDGE_MARGIN, macos_designated_requirement_is_cdhash_only,
+        resolve_main_window_position, should_position_main_window_on_show,
     };
     use translator_core::config::WindowPosition;
 
@@ -1250,7 +1249,9 @@ mod tests {
             css.contains(".service-logo-frame")
                 && css.contains("ring-2")
                 && css.contains("ring-bg")
-                && !css.contains(".service-logo-strip {\n    @apply inline-flex shrink-0 items-center gap-1;"),
+                && !css.contains(
+                    ".service-logo-strip {\n    @apply inline-flex shrink-0 items-center gap-1;"
+                ),
             "overlapped service logos should use background rings so borders do not cover adjacent logos",
         );
     }

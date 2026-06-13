@@ -314,15 +314,14 @@ impl TranslationService for GoogleService {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use reqwest::Client;
     use serde_json::json;
     use wiremock::matchers::{header, method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use crate::TranslationService;
     use crate::error::ServiceError;
     use crate::model::{ServiceId, TranslateRequest};
     use crate::service::ServiceConfig;
-    use crate::TranslationService;
 
     use super::GoogleService;
 
@@ -369,7 +368,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let res = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap();
         assert_eq!(res.text, "你好");
@@ -410,7 +409,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let res = GoogleService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .unwrap();
         assert_eq!(res.text, "你好");
@@ -443,7 +442,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let res = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap();
         assert_eq!(res.text, "你好");
@@ -468,7 +467,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -495,7 +494,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -522,7 +521,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -547,7 +546,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -572,7 +571,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));
@@ -594,7 +593,7 @@ mod tests {
             to: "zh-CN".to_string(),
         };
         let err = GoogleService
-            .translate(&req, &cfg, Some(TEST_KEY), &Client::new())
+            .translate(&req, &cfg, Some(TEST_KEY), &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));

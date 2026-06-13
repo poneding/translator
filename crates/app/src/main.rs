@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::state::AppState;
 
@@ -116,10 +116,10 @@ fn main() {
                 }
             }
 
-            if let Some(win) = app.get_webview_window("main") {
-                if let Err(e) = commands::prepare_main_window(app.handle(), &win, &cfg) {
-                    tracing::warn!(error = %e, "could not prepare main window");
-                }
+            if let Some(win) = app.get_webview_window("main")
+                && let Err(e) = commands::prepare_main_window(app.handle(), &win, &cfg)
+            {
+                tracing::warn!(error = %e, "could not prepare main window");
             }
 
             if cfg.updates.check_on_startup {

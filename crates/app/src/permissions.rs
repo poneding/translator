@@ -5,8 +5,7 @@
 //! holds the messaging the frontend shows when the permission is missing.
 
 #[allow(dead_code)]
-pub const MACOS_PERMISSION_GUIDE: &str =
-    "Translator needs the Accessibility permission to read your selected text. \
+pub const MACOS_PERMISSION_GUIDE: &str = "Translator needs the Accessibility permission to read your selected text. \
 Open System Settings → Privacy & Security → Accessibility, and enable Translator.";
 
 #[allow(dead_code)]

@@ -5,19 +5,34 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
-use keyring::Entry;
+use keyring_core::{Entry, Error as KeyringError};
 
 const SERVICE_NAME: &str = "dev.translator.desktop";
 
 static FALLBACK_SECRETS_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static KEYRING_STORE_INIT: OnceLock<std::result::Result<(), String>> = OnceLock::new();
 
 fn fallback_secrets_lock() -> &'static Mutex<()> {
     FALLBACK_SECRETS_LOCK.get_or_init(|| Mutex::new(()))
 }
 
+fn ensure_keyring_store() -> std::result::Result<(), String> {
+    KEYRING_STORE_INIT
+        .get_or_init(|| {
+            // Keep Linux on Secret Service, matching the old persistent backend.
+            keyring::use_native_store(true).map_err(|error| error.to_string())
+        })
+        .clone()
+}
+
+fn keyring_entry(service_id: &str) -> std::result::Result<Entry, String> {
+    ensure_keyring_store()?;
+    Entry::new(SERVICE_NAME, &format!("api_key:{service_id}")).map_err(|error| error.to_string())
+}
+
 /// Store an API key for a given service.
 pub fn set_api_key(service_id: &str, api_key: &str) -> Result<()> {
-    match Entry::new(SERVICE_NAME, &format!("api_key:{service_id}")) {
+    match keyring_entry(service_id) {
         Ok(entry) => match entry.set_password(api_key) {
             Ok(()) => Ok(()),
             Err(error) => {
@@ -34,10 +49,10 @@ pub fn set_api_key(service_id: &str, api_key: &str) -> Result<()> {
 
 /// Load an API key for a given service. Returns `Ok(None)` if not set.
 pub fn get_api_key(service_id: &str) -> Result<Option<String>> {
-    match Entry::new(SERVICE_NAME, &format!("api_key:{service_id}")) {
+    match keyring_entry(service_id) {
         Ok(entry) => match entry.get_password() {
             Ok(s) => Ok(Some(s)),
-            Err(keyring::Error::NoEntry) => get_fallback_api_key(service_id),
+            Err(KeyringError::NoEntry) => get_fallback_api_key(service_id),
             Err(e) => {
                 tracing::warn!(%service_id, error = %e, "keyring read failed; trying local fallback");
                 get_fallback_api_key(service_id)
@@ -54,10 +69,10 @@ pub fn get_api_key(service_id: &str) -> Result<Option<String>> {
 /// usable credential (BH-4.3). Returns `false` for both "not set" and keyring
 /// errors, so the caller can safely skip the service silently in either case.
 pub fn has_api_key(service_id: &str) -> Result<bool> {
-    match Entry::new(SERVICE_NAME, &format!("api_key:{service_id}")) {
+    match keyring_entry(service_id) {
         Ok(entry) => match entry.get_password() {
             Ok(_) => Ok(true),
-            Err(keyring::Error::NoEntry) => Ok(get_fallback_api_key(service_id)?.is_some()),
+            Err(KeyringError::NoEntry) => Ok(get_fallback_api_key(service_id)?.is_some()),
             Err(e) => {
                 tracing::warn!(%service_id, error = %e, "keyring probe failed; trying local fallback");
                 Ok(get_fallback_api_key(service_id)?.is_some())
@@ -72,9 +87,9 @@ pub fn has_api_key(service_id: &str) -> Result<bool> {
 
 /// Remove an API key for a given service.
 pub fn delete_api_key(service_id: &str) -> Result<()> {
-    match Entry::new(SERVICE_NAME, &format!("api_key:{service_id}")) {
+    match keyring_entry(service_id) {
         Ok(entry) => match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => delete_fallback_api_key(service_id),
+            Ok(()) | Err(KeyringError::NoEntry) => delete_fallback_api_key(service_id),
             Err(e) => {
                 tracing::warn!(%service_id, error = %e, "keyring delete failed; deleting local fallback");
                 delete_fallback_api_key(service_id)

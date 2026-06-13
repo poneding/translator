@@ -8,8 +8,8 @@
 
 use aes::Aes128;
 use async_trait::async_trait;
-use base64::{engine::general_purpose, Engine as _};
-use cbc::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
+use base64::{Engine as _, engine::general_purpose};
+use cbc::cipher::{BlockModeDecrypt, KeyIvInit, block_padding::Pkcs7};
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -77,7 +77,7 @@ impl YoudaoService {
         let mut hasher = Sha256::new();
         hasher.update(raw.as_bytes());
         let digest = hasher.finalize();
-        format!("{:x}", digest)
+        hex_lower(digest.as_slice())
     }
 
     /// Map a Youdao error code to a typed ServiceError.
@@ -90,7 +90,7 @@ impl YoudaoService {
                 return ServiceError::Api {
                     code: "success".to_string(),
                     message: code.to_string(),
-                }
+                };
             }
             "101" | "102" | "108" => "invalid_credentials",
             "202" => "bad_request",
@@ -479,9 +479,19 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn hex_lower(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    encoded
+}
+
 fn decrypt_web_payload(encrypted_text: &str, key: &str, iv: &str) -> ServiceResult<String> {
     let mut encoded = encrypted_text.trim().replace('-', "+").replace('_', "/");
-    while encoded.len() % 4 != 0 {
+    while !encoded.len().is_multiple_of(4) {
         encoded.push('=');
     }
     let encrypted = general_purpose::STANDARD
@@ -491,7 +501,7 @@ fn decrypt_web_payload(encrypted_text: &str, key: &str, iv: &str) -> ServiceResu
     let iv_hash = md5::compute(iv.as_bytes());
     let decrypted = Aes128CbcDec::new_from_slices(&key_hash.0, &iv_hash.0)
         .map_err(|e| ServiceError::Parse(format!("youdao web aes init: {e}")))?
-        .decrypt_padded_vec_mut::<Pkcs7>(&encrypted)
+        .decrypt_padded_vec::<Pkcs7>(&encrypted)
         .map_err(|e| ServiceError::Parse(format!("youdao web aes decrypt: {e}")))?;
     String::from_utf8(decrypted).map_err(|e| ServiceError::Parse(format!("youdao web utf8: {e}")))
 }
@@ -1062,18 +1072,17 @@ struct YoudaoWebTranslationItem {
 // =============================================================================
 #[cfg(test)]
 mod tests {
-    use base64::{engine::general_purpose, Engine as _};
-    use cbc::cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit};
+    use base64::{Engine as _, engine::general_purpose};
+    use cbc::cipher::{BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7};
     use pretty_assertions::assert_eq;
-    use reqwest::Client;
     use serde_json::json;
     use wiremock::matchers::{body_string_contains, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use crate::TranslationService;
     use crate::error::ServiceError;
     use crate::model::{ServiceId, TranslateRequest};
     use crate::service::ServiceConfig;
-    use crate::TranslationService;
 
     use super::YoudaoService;
 
@@ -1169,7 +1178,7 @@ mod tests {
         let iv_hash = md5::compute(WEB_AES_IV.as_bytes());
         let encrypted = Aes128CbcEnc::new_from_slices(&key_hash.0, &iv_hash.0)
             .unwrap()
-            .encrypt_padded_vec_mut::<Pkcs7>(plain.as_bytes());
+            .encrypt_padded_vec::<Pkcs7>(plain.as_bytes());
         general_purpose::STANDARD.encode(encrypted)
     }
 
@@ -1203,7 +1212,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hello", "zh-CHS");
         let result = YoudaoService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .expect("translate should succeed");
         assert_eq!(result.text, "你好");
@@ -1216,11 +1225,13 @@ mod tests {
         assert!(result.target_dictionary.is_none());
         let dictionary = result.dictionary.expect("dictionary should be parsed");
         assert_eq!(dictionary.phonetics.len(), 2);
-        assert!(dictionary.phonetics[0]
-            .audio_url
-            .as_deref()
-            .unwrap()
-            .contains("audio=Hello"));
+        assert!(
+            dictionary.phonetics[0]
+                .audio_url
+                .as_deref()
+                .unwrap()
+                .contains("audio=Hello")
+        );
         assert_eq!(dictionary.parts[0].part.as_deref(), Some("int."));
         assert_eq!(dictionary.parts[0].means, vec!["你好"]);
         assert_eq!(dictionary.simple_words[0].word, "Hello");
@@ -1264,7 +1275,7 @@ mod tests {
         };
         let req = TranslateRequest::auto("Hello", "zh-CHS");
         let result = YoudaoService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .expect("fallback translate should succeed");
         assert_eq!(result.text, "你好");
@@ -1277,11 +1288,13 @@ mod tests {
         assert!(result.target_dictionary.is_none());
         let dictionary = result.dictionary.expect("dictionary should be parsed");
         assert_eq!(dictionary.phonetics.len(), 2);
-        assert!(dictionary.phonetics[0]
-            .audio_url
-            .as_deref()
-            .unwrap()
-            .contains("audio=Hello"));
+        assert!(
+            dictionary.phonetics[0]
+                .audio_url
+                .as_deref()
+                .unwrap()
+                .contains("audio=Hello")
+        );
         assert_eq!(dictionary.parts[0].part.as_deref(), Some("int."));
         assert_eq!(dictionary.parts[0].means, vec!["你好"]);
         assert_eq!(dictionary.simple_words[0].word, "Hello");
@@ -1305,7 +1318,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "zh-CHS");
         let err = YoudaoService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -1330,7 +1343,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "zh-CHS");
         let err = YoudaoService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .unwrap_err();
         match err {
@@ -1355,7 +1368,7 @@ mod tests {
         let cfg = cfg_for(&server);
         let req = TranslateRequest::auto("Hi", "zh-CHS");
         let err = YoudaoService
-            .translate(&req, &cfg, None, &Client::new())
+            .translate(&req, &cfg, None, &crate::http::test_client())
             .await
             .unwrap_err();
         assert!(matches!(err, ServiceError::Parse(_)));

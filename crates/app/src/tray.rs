@@ -9,10 +9,10 @@
 //! Left-click on the tray icon also opens the main translation window.
 
 use tauri::{
+    AppHandle, Manager, Runtime,
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
 };
 
 use crate::commands;
