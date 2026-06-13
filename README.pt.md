@@ -21,32 +21,6 @@ Selecione texto em qualquer lugar → pressione uma tecla de atalho → traduza 
 
 ---
 
-## 📥 Instalação
-
-### Baixar dos Releases
-
-**Versão mais recente: v0.2.0**
-
-Baixe o instalador para sua plataforma do [GitHub Releases](https://github.com/poneding/translator/releases/latest):
-
-- **macOS**: `translator_0.2.0_universal.dmg` ou `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - Abra o arquivo DMG e arraste o aplicativo para a pasta Aplicativos
-  - Na primeira inicialização, clique com o botão direito no aplicativo e selecione "Abrir" para ignorar o Gatekeeper
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` ou `translator_0.2.0_x64_en-US.msi`
-  - Execute o instalador e siga o assistente de configuração
-  - O Windows Defender SmartScreen pode mostrar um aviso; clique em "Mais informações" → "Executar mesmo assim"
-  
-- **Linux**: `translator_0.2.0_amd64.deb` ou `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### Compilar a partir do código-fonte
-
-Consulte a seção [Início rápido](#-início-rápido) abaixo.
-
----
-
 ## ✨ Recursos
 
 - 🌍 **Tecla de atalho global** — Traduza texto selecionado de qualquer aplicativo instantaneamente
@@ -82,6 +56,20 @@ Consulte a seção [Início rápido](#-início-rápido) abaixo.
 </table>
 
 </div>
+
+## 📥 Instalação
+
+Baixe o instalador para sua plataforma do [GitHub Releases](https://github.com/poneding/translator/releases/latest):
+
+| Plataforma | Arquitetura | Download recomendado |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` ou `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`, `.deb` ou `.rpm` |
+
+Após o download, instale normalmente: no macOS, abra o `.dmg` e arraste o app para Aplicativos (na primeira inicialização, clique com o botão direito → "Abrir" para ignorar o Gatekeeper); no Windows, execute o instalador (se o SmartScreen avisar, clique em "Mais informações" → "Executar mesmo assim"); no Linux, execute o `.AppImage` diretamente ou instale o `.deb` / `.rpm` com o gerenciador de pacotes.
+
+Para compilar a partir do código-fonte, consulte a seção [Início rápido](#-início-rápido) abaixo.
 
 ## 🚀 Início rápido
 

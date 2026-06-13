@@ -21,32 +21,6 @@ Sélectionnez du texte n'importe où → appuyez sur un raccourci → traduisez 
 
 ---
 
-## 📥 Installation
-
-### Télécharger depuis les Releases
-
-**Dernière version : v0.2.0**
-
-Téléchargez l'installateur pour votre plateforme depuis [GitHub Releases](https://github.com/poneding/translator/releases/latest) :
-
-- **macOS** : `translator_0.2.0_universal.dmg` ou `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - Ouvrez le fichier DMG et faites glisser l'application vers le dossier Applications
-  - Au premier lancement, cliquez avec le bouton droit sur l'application et sélectionnez « Ouvrir » pour contourner Gatekeeper
-  
-- **Windows** : `translator_0.2.0_x64-setup.exe` ou `translator_0.2.0_x64_en-US.msi`
-  - Exécutez l'installateur et suivez l'assistant de configuration
-  - Windows Defender SmartScreen peut afficher un avertissement ; cliquez sur « Plus d'infos » → « Exécuter quand même »
-  
-- **Linux** : `translator_0.2.0_amd64.deb` ou `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB) : `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage** : `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### Compiler depuis les sources
-
-Consultez la section [Démarrage rapide](#-démarrage-rapide) ci-dessous.
-
----
-
 ## ✨ Fonctionnalités
 
 - 🌍 **Raccourci global** — Traduisez le texte sélectionné depuis n'importe quelle application instantanément
@@ -82,6 +56,20 @@ Consultez la section [Démarrage rapide](#-démarrage-rapide) ci-dessous.
 </table>
 
 </div>
+
+## 📥 Installation
+
+Téléchargez l'installateur pour votre plateforme depuis [GitHub Releases](https://github.com/poneding/translator/releases/latest) :
+
+| Plateforme | Architecture | Téléchargement recommandé |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` ou `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`, `.deb` ou `.rpm` |
+
+Après téléchargement, installez normalement : sur macOS, ouvrez le `.dmg` et glissez l'app dans Applications (au premier lancement, clic droit → « Ouvrir » pour contourner Gatekeeper) ; sur Windows, lancez l'installeur (si SmartScreen avertit, cliquez sur « Plus d'infos » → « Exécuter quand même ») ; sur Linux, exécutez directement le `.AppImage` ou installez le `.deb` / `.rpm` avec votre gestionnaire de paquets.
+
+Pour compiler depuis les sources, consultez la section [Démarrage rapide](#-démarrage-rapide) ci-dessous.
 
 ## 🚀 Démarrage rapide
 

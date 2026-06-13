@@ -21,32 +21,6 @@ Seleziona il testo ovunque → premi un tasto di scelta rapida → traduci istan
 
 ---
 
-## 📥 Installazione
-
-### Scarica dalle Releases
-
-**Ultima versione: v0.2.0**
-
-Scarica l'installer per la tua piattaforma da [GitHub Releases](https://github.com/poneding/translator/releases/latest):
-
-- **macOS**: `translator_0.2.0_universal.dmg` o `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - Apri il file DMG e trascina l'app nella cartella Applicazioni
-  - Al primo avvio, fai clic destro sull'app e seleziona "Apri" per ignorare Gatekeeper
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` o `translator_0.2.0_x64_en-US.msi`
-  - Esegui l'installer e segui la procedura guidata di configurazione
-  - Windows Defender SmartScreen potrebbe mostrare un avviso; fai clic su "Ulteriori informazioni" → "Esegui comunque"
-  
-- **Linux**: `translator_0.2.0_amd64.deb` o `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### Compilare dal codice sorgente
-
-Consulta la sezione [Avvio rapido](#-avvio-rapido) di seguito.
-
----
-
 ## ✨ Caratteristiche
 
 - 🌍 **Tasto di scelta rapida globale** — Traduci il testo selezionato da qualsiasi app istantaneamente
@@ -82,6 +56,20 @@ Consulta la sezione [Avvio rapido](#-avvio-rapido) di seguito.
 </table>
 
 </div>
+
+## 📥 Installazione
+
+Scarica l'installer per la tua piattaforma da [GitHub Releases](https://github.com/poneding/translator/releases/latest):
+
+| Piattaforma | Architettura | Download consigliato |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` o `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`, `.deb` o `.rpm` |
+
+Dopo il download, installa come di consueto: su macOS, apri il `.dmg` e trascina l'app in Applicazioni (al primo avvio, clic destro → "Apri" per ignorare Gatekeeper); su Windows, esegui l'installer (se SmartScreen avvisa, clicca su "Ulteriori informazioni" → "Esegui comunque"); su Linux, esegui direttamente il `.AppImage` o installa il `.deb` / `.rpm` con il gestore di pacchetti.
+
+Per compilare dal codice sorgente, consulta la sezione [Avvio rapido](#-avvio-rapido) di seguito.
 
 ## 🚀 Avvio rapido
 

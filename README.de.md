@@ -21,32 +21,6 @@ Text überall auswählen → Hotkey drücken → sofort übersetzen
 
 ---
 
-## 📥 Installation
-
-### Von Releases herunterladen
-
-**Neueste Version: v0.2.0**
-
-Laden Sie den Installer für Ihre Plattform von [GitHub Releases](https://github.com/poneding/translator/releases/latest) herunter:
-
-- **macOS**: `translator_0.2.0_universal.dmg` oder `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - Öffnen Sie die DMG-Datei und ziehen Sie die App in den Programme-Ordner
-  - Beim ersten Start klicken Sie mit der rechten Maustaste auf die App und wählen Sie „Öffnen", um Gatekeeper zu umgehen
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` oder `translator_0.2.0_x64_en-US.msi`
-  - Führen Sie den Installer aus und folgen Sie dem Setup-Assistenten
-  - Windows Defender SmartScreen zeigt möglicherweise eine Warnung an; klicken Sie auf „Weitere Informationen" → „Trotzdem ausführen"
-  
-- **Linux**: `translator_0.2.0_amd64.deb` oder `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### Aus Quellen erstellen
-
-Siehe Abschnitt [Schnellstart](#-schnellstart) unten.
-
----
-
 ## ✨ Funktionen
 
 - 🌍 **Globaler Hotkey** — Übersetzen Sie ausgewählten Text aus jeder App sofort
@@ -82,6 +56,20 @@ Siehe Abschnitt [Schnellstart](#-schnellstart) unten.
 </table>
 
 </div>
+
+## 📥 Installation
+
+Laden Sie den Installer für Ihre Plattform von [GitHub Releases](https://github.com/poneding/translator/releases/latest) herunter:
+
+| Plattform | Architektur | Empfohlener Download |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` oder `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`, `.deb` oder `.rpm` |
+
+Nach dem Download wie gewohnt installieren: Unter macOS die `.dmg` öffnen und die App in Programme ziehen (beim ersten Start Rechtsklick → „Öffnen" zum Umgehen von Gatekeeper); unter Windows den Installer ausführen (bei SmartScreen-Warnung „Weitere Informationen" → „Trotzdem ausführen"); unter Linux die `.AppImage` direkt ausführen oder `.deb` / `.rpm` mit dem Paketmanager installieren.
+
+Für die Erstellung aus Quellen siehe [Schnellstart](#-schnellstart) unten.
 
 ## 🚀 Schnellstart
 

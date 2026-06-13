@@ -21,32 +21,6 @@ Selecciona texto en cualquier lugar → pulsa una tecla → traduce al instante
 
 ---
 
-## 📥 Instalación
-
-### Descargar desde Releases
-
-**Última versión: v0.2.0**
-
-Descargue el instalador para su plataforma desde [GitHub Releases](https://github.com/poneding/translator/releases/latest):
-
-- **macOS**: `translator_0.2.0_universal.dmg` o `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - Abra el archivo DMG y arrastre la aplicación a la carpeta Aplicaciones
-  - En el primer inicio, haga clic derecho en la aplicación y seleccione "Abrir" para omitir Gatekeeper
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` o `translator_0.2.0_x64_en-US.msi`
-  - Ejecute el instalador y siga el asistente de configuración
-  - Windows Defender SmartScreen puede mostrar una advertencia; haga clic en "Más información" → "Ejecutar de todas formas"
-  
-- **Linux**: `translator_0.2.0_amd64.deb` o `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### Compilar desde código fuente
-
-Consulte la sección [Inicio rápido](#-inicio-rápido) a continuación.
-
----
-
 ## ✨ Características
 
 - 🌍 **Atajo global** — Traduce texto seleccionado desde cualquier aplicación al instante
@@ -82,6 +56,20 @@ Consulte la sección [Inicio rápido](#-inicio-rápido) a continuación.
 </table>
 
 </div>
+
+## 📥 Instalación
+
+Descargue el instalador para su plataforma desde [GitHub Releases](https://github.com/poneding/translator/releases/latest):
+
+| Plataforma | Arquitectura | Descarga recomendada |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` o `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`, `.deb` o `.rpm` |
+
+Tras descargar, instale según su sistema: en macOS, abra el `.dmg` y arrastre la app a Aplicaciones (en el primer inicio, clic derecho → "Abrir" para omitir Gatekeeper); en Windows, ejecute el instalador (si SmartScreen advierte, haga clic en "Más información" → "Ejecutar de todas formas"); en Linux, ejecute directamente el `.AppImage` o instale el `.deb` / `.rpm` con su gestor de paquetes.
+
+Para compilar desde código fuente, consulte la sección [Inicio rápido](#-inicio-rápido) a continuación.
 
 ## 🚀 Inicio rápido
 

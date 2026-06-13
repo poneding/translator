@@ -21,32 +21,6 @@
 
 ---
 
-## 📥 安裝
-
-### 從 Release 下載
-
-**最新版本：v0.2.0**
-
-從 [GitHub Releases](https://github.com/poneding/translator/releases/latest) 下載適合您平台的安裝套件：
-
-- **macOS**: `translator_0.2.0_universal.dmg` 或 `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - 開啟 DMG 檔案，將應用程式拖曳到「應用程式」資料夾
-  - 首次啟動時，右鍵點選應用程式並選擇「開啟」以繞過 Gatekeeper
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` 或 `translator_0.2.0_x64_en-US.msi`
-  - 執行安裝程式並依照設定精靈操作
-  - Windows Defender SmartScreen 可能會顯示警告；點選「更多資訊」 → 「仍要執行」
-  
-- **Linux**: `translator_0.2.0_amd64.deb` 或 `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### 從原始碼建置
-
-請參閱下方的[快速開始](#-快速開始)部分。
-
----
-
 ## ✨ 特色
 
 - 🌍 **全域快速鍵** — 在任意應用程式中選取文字即可翻譯
@@ -82,6 +56,20 @@
 </table>
 
 </div>
+
+## 📥 安裝
+
+從 [GitHub Releases](https://github.com/poneding/translator/releases/latest) 下載適合您平台的安裝套件：
+
+| 平台 | 架構 | 推薦下載 |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` 或 `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`、`.deb` 或 `.rpm` |
+
+下載後按系統習慣安裝即可：macOS 開啟 `.dmg` 後將應用程式拖到「應用程式」資料夾（首次啟動時右鍵 → 「開啟」以繞過 Gatekeeper）；Windows 執行安裝程式（如 SmartScreen 警告，點選「更多資訊」 → 「仍要執行」）；Linux 直接執行 `.AppImage` 或使用套件管理器安裝 `.deb` / `.rpm`。
+
+如需從原始碼建置，請參閱下方[快速開始](#-快速開始)部分。
 
 ## 🚀 快速開始
 

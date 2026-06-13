@@ -21,45 +21,6 @@ Pick text anywhere → press a hotkey → translate instantly
 
 ---
 
-## 📥 Installation
-
-### Download from Releases
-
-**Latest version: v0.2.0**
-
-Download the installer for your platform from [GitHub Releases](https://github.com/poneding/translator/releases/latest):
-
-- **macOS**: `translator_0.2.0_universal.dmg` or `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - Open the DMG file and drag the app to Applications folder
-  - On first launch, right-click the app and select "Open" to bypass Gatekeeper
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` or `translator_0.2.0_x64_en-US.msi`
-  - Run the installer and follow the setup wizard
-  - Windows Defender SmartScreen may show a warning; click "More info" → "Run anyway"
-  
-- **Linux**: `translator_0.2.0_amd64.deb` or `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### Build from Source
-
-See [Quick Start](#-quick-start) section below.
-
----
-
-## ✨ Features
-
-- 🌍 **Global hotkey** — Translate selected text from any app instantly
-- 🔌 **5 translation services** — Youdao (有道), DeepL, Google, Bing (Azure), OpenAI-compatible
-- 🤖 **Auto language detection** — Smart source language recognition
-- 🎯 **Main-window translation** — Pin, history, audio playback, per-service retry
-- 📋 **Clipboard fallback** — Translate clipboard when selection unavailable
-- 🔄 **Built-in updates** — Stable/beta release channels
-- 🎨 **Dark mode** — Follows system preferences
-- 🌏 **12 UI languages** — Live app-language switching
-- 🔐 **Secure storage** — API keys stored in OS Keychain
-- ⚡ **Lightweight** — ~6 MB binary, <50 MB memory
-
 ## 📸 Screenshots
 
 <div align="center">
@@ -82,6 +43,33 @@ See [Quick Start](#-quick-start) section below.
 </table>
 
 </div>
+
+## ✨ Features
+
+- 🌍 **Global hotkey** — Translate selected text from any app instantly
+- 🔌 **5 translation services** — Youdao (有道), DeepL, Google, Bing (Azure), OpenAI-compatible
+- 🤖 **Auto language detection** — Smart source language recognition
+- 🎯 **Main-window translation** — Pin, history, audio playback, per-service retry
+- 📋 **Clipboard fallback** — Translate clipboard when selection unavailable
+- 🔄 **Built-in updates** — Stable/beta release channels
+- 🎨 **Dark mode** — Follows system preferences
+- 🌏 **12 UI languages** — Live app-language switching
+- 🔐 **Secure storage** — API keys stored in OS Keychain
+- ⚡ **Lightweight** — ~6 MB binary, <50 MB memory
+
+## 📥 Installation
+
+Download the installer for your platform from [GitHub Releases](https://github.com/poneding/translator/releases/latest):
+
+| Platform | Architecture | Download |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` or `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage`, `.deb` or `.rpm` |
+
+After downloading, install as usual: on macOS open the `.dmg` and drag the app to Applications (on first launch, right-click → "Open" to bypass Gatekeeper); on Windows run the installer (if SmartScreen warns, click "More info" → "Run anyway"); on Linux run the `.AppImage` directly or install the `.deb` / `.rpm` with your package manager.
+
+To build from source, see [Quick Start](#-quick-start) below.
 
 ## 🚀 Quick Start
 

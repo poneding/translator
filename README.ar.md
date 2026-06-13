@@ -21,32 +21,6 @@
 
 ---
 
-## 📥 التثبيت
-
-### التحميل من Releases
-
-**أحدث إصدار: v0.2.0**
-
-قم بتنزيل المثبت لمنصتك من [GitHub Releases](https://github.com/poneding/translator/releases/latest):
-
-- **macOS**: `translator_0.2.0_universal.dmg` أو `translator_0.2.0_aarch64.dmg` / `translator_0.2.0_x64.dmg`
-  - افتح ملف DMG واسحب التطبيق إلى مجلد التطبيقات
-  - عند التشغيل الأول، انقر بزر الماوس الأيمن على التطبيق واختر "فتح" لتجاوز Gatekeeper
-  
-- **Windows**: `translator_0.2.0_x64-setup.exe` أو `translator_0.2.0_x64_en-US.msi`
-  - قم بتشغيل المثبت واتبع معالج الإعداد
-  - قد يظهر Windows Defender SmartScreen تحذيرًا؛ انقر على "مزيد من المعلومات" → "تشغيل على أي حال"
-  
-- **Linux**: `translator_0.2.0_amd64.deb` أو `translator_0.2.0_amd64.AppImage`
-  - **Debian/Ubuntu** (DEB): `sudo dpkg -i translator_0.2.0_amd64.deb`
-  - **AppImage**: `chmod +x translator_0.2.0_amd64.AppImage && ./translator_0.2.0_amd64.AppImage`
-
-### البناء من المصدر
-
-راجع قسم [البدء السريع](#-البدء-السريع) أدناه.
-
----
-
 ## ✨ الميزات
 
 - 🌍 **مفتاح اختصار عام** — ترجمة النص المحدد من أي تطبيق على الفور
@@ -82,6 +56,20 @@
 </table>
 
 </div>
+
+## 📥 التثبيت
+
+قم بتنزيل المثبت لمنصتك من [GitHub Releases](https://github.com/poneding/translator/releases/latest):
+
+| المنصة | البنية | التنزيل الموصى به |
+| --- | --- | --- |
+| macOS | Intel / Apple Silicon | `.dmg` |
+| Windows | x86_64 | `.msi` أو `.exe` |
+| Linux | x86_64 / arm64 | `.AppImage` أو `.deb` أو `.rpm` |
+
+بعد التنزيل، قم بالتثبيت كالمعتاد: على macOS، افتح `.dmg` واسحب التطبيق إلى مجلد التطبيقات (عند التشغيل الأول، انقر بزر الماوس الأيمن → "فتح" لتجاوز Gatekeeper)؛ على Windows، شغّل المثبت (إذا ظهر تحذير SmartScreen، انقر على "مزيد من المعلومات" → "تشغيل على أي حال")؛ على Linux، شغّل `.AppImage` مباشرة أو قم بتثبيت `.deb` / `.rpm` باستخدام مدير الحزم.
+
+للبناء من المصدر، راجع قسم [البدء السريع](#-البدء-السريع) أدناه.
 
 ## 🚀 البدء السريع
 
