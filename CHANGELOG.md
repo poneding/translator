@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.4] - 2026-06-13
 
-
 ### Added
 
 - Add restart actions
+
+### Fixed
+
+- **macOS**: refresh stale Accessibility permission after app update by
+  calling `AXIsProcessTrustedWithOptions(kAXTrustedCheckOptionPrompt=true)`
+  on startup and on hotkey `PermissionDenied`, forcing TCC re-evaluation
+  when the binary changes but the permission is still checked in System Settings
 ## [0.1.0] - 2026-06-02
 
 First public preview release of the cross-platform `translator` app.
