@@ -1317,8 +1317,8 @@ mod tests {
             .join("../../ui/src/settings/sections/UpdateSection.tsx")
             .canonicalize()
             .expect("UpdateSection.tsx path should resolve");
-        let update_section = fs::read_to_string(update_section_path)
-            .expect("UpdateSection.tsx should be readable");
+        let update_section =
+            fs::read_to_string(update_section_path).expect("UpdateSection.tsx should be readable");
 
         assert!(
             settings_app.contains("titleAction")
