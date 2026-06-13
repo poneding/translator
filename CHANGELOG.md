@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-06-13
+
+
+### Chores
+
+- Upgrade deps and migrate to Rust 2024 edition
+- Bump version to 0.2.5
+
+
+### Fixed
+
+- Stabilize macos accessibility signing
+- **macos:** Replace osascript copy with native CGEvent to drop System Events permission
 ## [0.2.4] - 2026-06-13
 
 ### Added
