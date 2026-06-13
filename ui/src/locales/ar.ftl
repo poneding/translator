@@ -182,6 +182,7 @@ settings-update-check-startup = Check for updates on startup
 settings-update-allow-beta = Allow beta versions
 settings-update-check = Check for updates
 settings-update-install = Download and install
+settings-update-restart = إعادة التشغيل
 settings-update-status-idle = No update check has run yet.
 settings-update-status-checking = Checking for updates...
 settings-update-status-up-to-date = You are up to date.

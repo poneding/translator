@@ -1,7 +1,9 @@
 //! System tray (macOS menu bar / Windows system tray / Linux AppIndicator).
 //!
 //! Provides a menu with:
+//! - Open Translator
 //! - Open Settings
+//! - Restart Translator
 //! - Quit
 //!
 //! Left-click on the tray icon also opens the main translation window.
@@ -26,8 +28,9 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let open_main = MenuItem::with_id(app, "open_main", "Open Translator", true, None::<&str>)?;
     let open_settings =
         MenuItem::with_id(app, "open_settings", "Open Settings", true, None::<&str>)?;
+    let restart = MenuItem::with_id(app, "restart", "Restart Translator", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open_main, &open_settings, &quit])?;
+    let menu = Menu::with_items(app, &[&open_main, &open_settings, &restart, &quit])?;
 
     let icon = load_tray_icon().map_err(|e| tauri::Error::AssetNotFound(e.to_string()))?;
 
@@ -43,6 +46,9 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             "open_settings" => {
                 let _ = commands::show_main_window(app, Some("translator://open-settings"));
+            }
+            "restart" => {
+                let _ = commands::restart_app(app.clone());
             }
             "quit" => {
                 if let Some(window) = app.get_webview_window("main") {

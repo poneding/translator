@@ -130,6 +130,7 @@ fn main() {
             commands::get_text_audio_url,
             commands::open_main_window,
             commands::open_settings,
+            commands::restart_app,
             commands::set_main_window_always_on_top,
             commands::open_external_url,
             commands::get_config,

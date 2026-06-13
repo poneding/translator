@@ -318,6 +318,16 @@ pub fn open_main_window<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
     show_main_window(&app, Some("translator://open-main"))
 }
 
+/// Restart the application, preserving the last known main-window position first.
+#[tauri::command]
+pub fn restart_app<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = remember_main_webview_window_position(&window);
+    }
+    app.request_restart();
+    Ok(())
+}
+
 pub(crate) fn show_main_window<R: Runtime>(
     app: &AppHandle<R>,
     event: Option<&str>,
@@ -1330,6 +1340,85 @@ mod tests {
             update_section.contains("status.status !== \"idle\"")
                 && !update_section.contains("settings-update-status-idle"),
             "idle update status should not render the default 'not checked' message",
+        );
+    }
+
+    #[test]
+    fn restart_action_is_available_from_tray_and_ipc() {
+        let commands_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands.rs");
+        let commands = fs::read_to_string(commands_path).expect("commands.rs should be readable");
+        let main_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+        let main = fs::read_to_string(main_path).expect("main.rs should be readable");
+        let tray_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tray.rs");
+        let tray = fs::read_to_string(tray_path).expect("tray.rs should be readable");
+        let frontend_commands_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/ipc/commands.ts")
+            .canonicalize()
+            .expect("frontend commands path should resolve");
+        let frontend_commands =
+            fs::read_to_string(frontend_commands_path).expect("commands.ts should be readable");
+
+        assert!(
+            commands.contains("pub fn restart_app")
+                && commands.contains("request_restart()")
+                && commands.contains("remember_main_webview_window_position"),
+            "restart command should remember window position and request an app restart",
+        );
+        assert!(
+            main.contains("commands::restart_app")
+                && frontend_commands.contains("restartApp")
+                && frontend_commands.contains("invoke<void>(\"restart_app\")"),
+            "restart command should be registered for frontend IPC",
+        );
+        assert!(
+            tray.contains("\"restart\"")
+                && tray.contains("Restart Translator")
+                && tray.contains("commands::restart_app(app.clone())"),
+            "tray/menu-bar menu should expose a restart item that uses the shared restart command",
+        );
+    }
+
+    #[test]
+    fn installed_update_status_shows_restart_action() {
+        let update_section_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/UpdateSection.tsx")
+            .canonicalize()
+            .expect("UpdateSection.tsx path should resolve");
+        let update_section =
+            fs::read_to_string(update_section_path).expect("UpdateSection.tsx should be readable");
+        let update_controls_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/useUpdateControls.ts")
+            .canonicalize()
+            .expect("useUpdateControls.ts path should resolve");
+        let update_controls = fs::read_to_string(update_controls_path)
+            .expect("useUpdateControls.ts should be readable");
+        let en_locale_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/locales/en.ftl")
+            .canonicalize()
+            .expect("en locale path should resolve");
+        let en_locale = fs::read_to_string(en_locale_path).expect("en locale should be readable");
+        let zh_locale_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/locales/zh-Hans.ftl")
+            .canonicalize()
+            .expect("zh-Hans locale path should resolve");
+        let zh_locale =
+            fs::read_to_string(zh_locale_path).expect("zh-Hans locale should be readable");
+
+        assert!(
+            update_section.contains("status.status === \"installed\"")
+                && update_section.contains("controls.restart()")
+                && update_section.contains("settings-update-restart"),
+            "installed update status should render a restart button",
+        );
+        assert!(
+            update_controls.contains("restart: () => Promise<void>")
+                && update_controls.contains("api.restartApp()"),
+            "update controls should expose a restart action",
+        );
+        assert!(
+            en_locale.contains("settings-update-restart = Restart")
+                && zh_locale.contains("settings-update-restart = 重新启动"),
+            "restart action should be localized in English and Simplified Chinese",
         );
     }
 

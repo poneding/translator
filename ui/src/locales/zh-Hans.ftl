@@ -182,6 +182,7 @@ settings-update-check-startup = 启动时检查更新
 settings-update-allow-beta = 允许 Beta 版本
 settings-update-check = 检查更新
 settings-update-install = 下载并安装
+settings-update-restart = 重新启动
 settings-update-status-idle = 尚未检查更新。
 settings-update-status-checking = 正在检查更新...
 settings-update-status-up-to-date = 当前已是最新版本。

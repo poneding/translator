@@ -92,6 +92,16 @@ export function UpdateSection({ controls }: { controls: UpdateControls }) {
           <p className={status.status === "failed" ? "text-red-500" : "text-fg"}>
             {statusText}
           </p>
+          {status.status === "installed" && (
+            <button
+              type="button"
+              className="btn btn-primary mt-3"
+              onClick={() => void controls.restart()}
+            >
+              <RefreshCw size={15} aria-hidden="true" />
+              {t("settings-update-restart")}
+            </button>
+          )}
           {status.update?.available && (
             <div className="mt-2 space-y-1 text-xs text-fg-subtle">
               <p>

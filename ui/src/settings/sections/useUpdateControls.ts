@@ -16,6 +16,7 @@ export interface UpdateControls {
   checking: boolean;
   install: () => Promise<void>;
   installing: boolean;
+  restart: () => Promise<void>;
   status: UpdateStatusDto;
 }
 
@@ -42,6 +43,7 @@ export function useUpdateControls(): UpdateControls {
     const next = await api.downloadAndInstallUpdate();
     setStatus(next);
   }, []);
+  const restart = useCallback(() => api.restartApp(), []);
 
   return {
     available: Boolean(available),
@@ -49,6 +51,7 @@ export function useUpdateControls(): UpdateControls {
     checking,
     install,
     installing,
+    restart,
     status,
   };
 }

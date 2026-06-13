@@ -86,6 +86,10 @@ export function openSettings(): Promise<void> {
   return invoke<void>("open_settings");
 }
 
+export function restartApp(): Promise<void> {
+  return invoke<void>("restart_app");
+}
+
 export function openExternalUrl(url: string): Promise<void> {
   return invoke<void>("open_external_url", { args: { url } });
 }
