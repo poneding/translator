@@ -76,6 +76,28 @@ pub trait SelectionMonitor: Send + Sync {
     async fn open_permission_settings(&self) -> Result<(), SelectionError>;
 }
 
+/// Proactively request the platform selection permission, if needed.
+///
+/// On macOS this calls `AXIsProcessTrustedWithOptions` with the prompt
+/// option, which forces the TCC subsystem to re-evaluate the Accessibility
+/// permission. This is the standard workaround for a known macOS quirk:
+/// after an app update the binary changes, and the TCC grant may go stale
+/// even though the entry is still checked in System Settings.
+///
+/// On Windows and Linux this is a no-op (no special permission to request).
+///
+/// Returns `true` if the permission is now granted.
+pub fn request_accessibility_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        macos::request_accessibility_permission()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+
 /// Construct a platform-appropriate [`SelectionMonitor`] implementation.
 pub fn create() -> Box<dyn SelectionMonitor> {
     #[cfg(target_os = "macos")]

@@ -7,16 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-06-13
+
+
 ### Added
-- Live OS theme tracking via `useTheme` hook and `matchMedia('(prefers-color-scheme: dark)')` for the `system` appearance choice (BH-11.2); CSS now uses explicit `[data-theme="light"]` and `[data-theme="dark"]` selectors
-- `i18n` module: `@fluent/bundle` loaded with `en.ftl` and `zh-Hans.ftl`, `useT()` hook for all sidebar and section labels (BH-13.4)
-- `RELEASE.md` documents the v0.1.0 → v0.2.0 release process, including the macOS / Windows / Linux code-signing plan (M5.5, M5.6, M5.7)
-- Real app icons generated via `cargo tauri icon` from a 1024×1024 source PNG (M5.4): `icon.ico` 17 KB (Windows), `icon.icns` 110 KB (macOS), `icon.png` 22 KB (Linux), plus all Windows Store and iOS AppIcon variants
-- M5.10 manual security review documented in `SECURITY.md`; verdict PASS WITH FINDINGS, two low-severity hardening notes, no critical or high-severity vulnerabilities
 
-### Changed
-- `lto = "fat"` + `strip = "symbols"` in `[profile.release]` trims the Windows binary from 8.58 MB to 8.25 MB, meeting the < 8 MB target in SPEC §4.1 (M5.11)
-
+- Add restart actions
 ## [0.1.0] - 2026-06-02
 
 First public preview release of the cross-platform `translator` app.

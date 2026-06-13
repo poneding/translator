@@ -27,6 +27,8 @@
 
 use async_trait::async_trait;
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
+use core_foundation::boolean::CFBoolean;
+use core_foundation::dictionary::CFDictionary;
 use core_foundation::string::{CFString, CFStringRef};
 use core_graphics::event::CGEvent;
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
@@ -44,9 +46,9 @@ use crate::{Rect, SelectionError, SelectionMonitor};
 
 use accessibility_sys::{
     error_string, kAXBoundsForRangeParameterizedAttribute, kAXErrorAPIDisabled,
-    kAXFocusedUIElementAttribute, kAXSelectedTextAttribute, AXIsProcessTrustedWithOptions,
-    AXUIElementCopyAttributeValue, AXUIElementCopyParameterizedAttributeValue,
-    AXUIElementCreateSystemWide, AXUIElementRef,
+    kAXFocusedUIElementAttribute, kAXSelectedTextAttribute, kAXTrustedCheckOptionPrompt,
+    AXIsProcessTrustedWithOptions, AXUIElementCopyAttributeValue,
+    AXUIElementCopyParameterizedAttributeValue, AXUIElementCreateSystemWide, AXUIElementRef,
 };
 
 const AX_SUCCESS: i32 = 0;
@@ -66,6 +68,30 @@ impl MacOSSelection {
 impl Default for MacOSSelection {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Proactively request the macOS Accessibility permission.
+///
+/// Calls `AXIsProcessTrustedWithOptions` with `kAXTrustedCheckOptionPrompt = true`,
+/// which forces macOS to re-evaluate whether this process has the Accessibility
+/// permission. This is the **standard workaround** for a known macOS TCC quirk:
+/// after an app update the binary changes, and while the Accessibility entry may
+/// still appear checked in System Settings, the TCC subsystem may not recognize
+/// the new binary until this prompt-triggering call is made.
+///
+/// - If the permission is already granted and recognized: returns `true` immediately.
+/// - If the app is listed in Accessibility but the new binary isn't matched: macOS
+///   re-evaluates and returns `true` without showing a dialog.
+/// - If the app is not in the list at all: macOS shows the system authorization dialog.
+///
+/// Returns `true` if the process is now a trusted accessibility client.
+pub fn request_accessibility_permission() -> bool {
+    unsafe {
+        let key: CFString = TCFType::wrap_under_get_rule(kAXTrustedCheckOptionPrompt);
+        let value = CFBoolean::true_value();
+        let dict = CFDictionary::from_CFType_pairs(&[(key, value)]);
+        AXIsProcessTrustedWithOptions(dict.as_concrete_TypeRef())
     }
 }
 
@@ -227,11 +253,17 @@ impl SelectionMonitor for MacOSSelection {
     }
 
     fn is_permission_granted(&self) -> bool {
-        // Passing NULL means "use the default prompt behavior". We pass NULL
-        // because the prompt itself is shown by the OS the first time the
-        // app calls into the AX framework (e.g. AXUIElementCreateSystemWide).
-        // AXIsProcessTrustedWithOptions is the synchronous check.
-        unsafe { AXIsProcessTrustedWithOptions(std::ptr::null()) }
+        unsafe {
+            // First try the passive check (null options → no prompt).
+            if AXIsProcessTrustedWithOptions(std::ptr::null()) {
+                return true;
+            }
+            // Passive check returned false, but the user may already have
+            // granted the permission (e.g. after an app update). Calling with
+            // the prompt option forces macOS to re-evaluate the TCC entry,
+            // matching the new binary against the stored bundle grant.
+            request_accessibility_permission()
+        }
     }
 
     async fn open_permission_settings(&self) -> Result<(), SelectionError> {

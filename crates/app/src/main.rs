@@ -62,6 +62,14 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
+            // macOS: proactively request accessibility permission so TCC
+            // re-evaluates the grant (fixes stale permission after app update).
+            #[cfg(target_os = "macos")]
+            {
+                let trusted = translator_platform::request_accessibility_permission();
+                tracing::debug!(trusted, "macOS accessibility permission state");
+            }
+
             // Build app state.
             let state = AppState::new();
             app.manage(Arc::new(state));

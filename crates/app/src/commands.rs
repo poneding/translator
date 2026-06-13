@@ -1733,7 +1733,21 @@ pub async fn on_hotkey<R: Runtime>(app: &AppHandle<R>) {
     let monitor = state.selection_monitor().await;
     let cfg = Config::load().unwrap_or_default();
 
-    let mut payload = match monitor.get_selected_text().await {
+    let result = monitor.get_selected_text().await;
+
+    // macOS TCC quirk: after an app update the binary changes, and the
+    // Accessibility grant may go stale even though the entry is still
+    // checked in System Settings. When we see PermissionDenied, force a
+    // re-evaluation via the prompt option and retry once.
+    #[cfg(target_os = "macos")]
+    let result = if matches!(result, Err(SelectionError::PermissionDenied)) {
+        translator_platform::request_accessibility_permission();
+        monitor.get_selected_text().await
+    } else {
+        result
+    };
+
+    let mut payload = match result {
         Ok(Some(text)) if !text.trim().is_empty() => HotkeyPayload {
             text: Some(text),
             error: None,
