@@ -210,6 +210,13 @@ jobs:
         working-directory: ui
         run: npm run build
 
+      - name: Clean stale Tauri bundles
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path target -Recurse -Directory -Filter bundle -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "[/\\]release[/\\]bundle$" } |
+            Remove-Item -Recurse -Force
+
       - name: Install macOS signing certificate
         if: matrix.os == 'macos'
         timeout-minutes: 5
@@ -316,6 +323,7 @@ jobs:
         with:
           projectPath: .
           args: ${{ matrix.args }}
+          retryAttempts: 2
           tagName: ${{ github.ref_name }}
           releaseId: ${{ needs.create-release.outputs.release_id }}
 

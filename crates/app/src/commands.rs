@@ -1102,6 +1102,8 @@ mod tests {
             "MACOS_CODESIGN_IDENTITY",
             "APPLE_SIGNING_IDENTITY=$MACOS_CODESIGN_IDENTITY",
             "max-parallel: 1",
+            "Clean stale Tauri bundles",
+            "retryAttempts: 2",
             "Verify macOS code signature",
             "scripts/macos-sign-app.sh --verify-only",
         ] {
