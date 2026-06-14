@@ -98,6 +98,13 @@ cargo test -p translator-core --lib services::
 5. Manually verify the draft artifacts, updater manifest/signatures, and notes,
    then publish.
 
+macOS release builds use a fixed self-signed signing identity so Accessibility
+permissions survive app updates without requiring a paid Apple Developer
+Program account. Generate it once with
+`scripts/macos/create-self-signed-codesign-cert.sh` and add the printed
+`MACOS_CODESIGN_CERTIFICATE`, `MACOS_CODESIGN_CERTIFICATE_PASSWORD`, and
+`MACOS_CODESIGN_IDENTITY` values to GitHub Actions secrets.
+
 ## Updater development
 
 The app uses the official `tauri-plugin-updater`.
@@ -105,11 +112,14 @@ The app uses the official `tauri-plugin-updater`.
 - Generate a Tauri updater key pair with `cargo tauri signer generate`.
 - Commit only the public key in `crates/app/tauri.conf.json`
   `plugins.updater.pubkey`; never commit the private key.
-- Store the private key file in GitHub Actions as
-  `TAURI_SIGNING_PRIVATE_KEY_B64`, encoded as single-line base64, and store
-  the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
-- `release.yml` decodes the base64 secret into a temporary key file and passes
-  that path to `TAURI_SIGNING_PRIVATE_KEY`.
+- Store the private key string printed by `cargo tauri signer generate` in
+  GitHub Actions as `TAURI_SIGNING_PRIVATE_KEY_B64`, encoded one more time as
+  single-line base64. For example:
+  `printf '%s' '<private-key-line-from-tauri>' | base64 | tr -d '\n'`.
+- Store the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only if the key
+  was generated with a password.
+- `release.yml` decodes `TAURI_SIGNING_PRIVATE_KEY_B64` and passes the private
+  key string to `TAURI_SIGNING_PRIVATE_KEY`.
 - Stable checks use
   `https://github.com/poneding/translator/releases/latest/download/latest.json`.
 - Beta checks use the `beta` release/tag manifest URL configured in

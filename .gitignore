@@ -28,6 +28,7 @@ Thumbs.db
 .env
 .env.local
 *.local
+*.p12
 
 # Test fixtures with secrets
 fixtures/credentials.json

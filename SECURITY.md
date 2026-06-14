@@ -73,7 +73,11 @@ actionlint .github/workflows/*.yml
 For updater-enabled releases, also verify:
 
 - `bundle.createUpdaterArtifacts` is enabled.
-- `TAURI_SIGNING_PRIVATE_KEY_B64` decodes to the full private key file.
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` matches the key.
+- macOS release builds import the fixed `MACOS_CODESIGN_*` self-signed
+  certificate secrets before Tauri packaging.
+- `TAURI_SIGNING_PRIVATE_KEY_B64` decodes to the private key string printed by
+  `cargo tauri signer generate`.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` matches the key if the key was generated
+  with a password.
 - The GitHub Release includes updater manifests, updater archives, and
   signatures for every published platform.

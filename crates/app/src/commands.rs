@@ -1087,7 +1087,7 @@ mod tests {
     }
 
     #[test]
-    fn release_workflow_requires_stable_macos_code_signing() {
+    fn release_workflow_requires_fixed_macos_code_signing_identity() {
         let workflow_path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.github/workflows/release.yml")
             .canonicalize()
@@ -1096,9 +1096,11 @@ mod tests {
             fs::read_to_string(workflow_path).expect("release workflow should be readable");
 
         for required in [
-            "APPLE_CERTIFICATE is required so macOS Accessibility grants survive app updates",
-            "APPLE_CERTIFICATE_PASSWORD is required to import the macOS signing certificate",
-            "APPLE_SIGNING_IDENTITY is required for macOS code signing",
+            "Install macOS signing certificate",
+            "MACOS_CODESIGN_CERTIFICATE",
+            "MACOS_CODESIGN_CERTIFICATE_PASSWORD",
+            "MACOS_CODESIGN_IDENTITY",
+            "APPLE_SIGNING_IDENTITY=$MACOS_CODESIGN_IDENTITY",
             "Verify macOS code signature",
             "scripts/macos-sign-app.sh --verify-only",
         ] {
