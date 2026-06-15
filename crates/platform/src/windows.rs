@@ -149,10 +149,10 @@ fn wait_for_clipboard_text(previous_seq: Option<u32>) -> Result<Option<String>, 
     while start.elapsed() < Duration::from_millis(350) {
         thread::sleep(Duration::from_millis(25));
 
-        if let Some(previous_seq) = previous_seq {
-            if clipboard_win::seq_num().map(|num| num.get()) == Some(previous_seq) {
-                continue;
-            }
+        if let Some(previous_seq) = previous_seq
+            && clipboard_win::seq_num().map(|num| num.get()) == Some(previous_seq)
+        {
+            continue;
         }
 
         return match clipboard_win::get_clipboard_string() {
