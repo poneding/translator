@@ -607,6 +607,21 @@ function SourceEditor({
     return () => window.clearTimeout(timer);
   }, [copied]);
 
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlistenPromise = win.onFocusChanged(({ payload: focused }) => {
+      if (!focused) return;
+      window.requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea || document.activeElement === textarea) return;
+        textarea.focus({ preventScroll: true });
+      });
+    });
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
   return (
     <div className="space-y-1.5">
       <div className="source-editor">
