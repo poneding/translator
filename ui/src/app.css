@@ -337,4 +337,65 @@
   .result-card:focus-within .result-card-refresh {
     @apply opacity-100 pointer-events-auto;
   }
+
+  .update-changelog {
+    @apply mt-2 max-h-64 overflow-y-auto rounded-md border border-border bg-bg px-3 py-2 text-xs leading-5 text-fg;
+  }
+
+  .update-changelog > * + * {
+    @apply mt-2;
+  }
+
+  .update-changelog h1,
+  .update-changelog h2,
+  .update-changelog h3 {
+    @apply text-sm font-semibold text-fg;
+  }
+
+  .update-changelog h4,
+  .update-changelog h5,
+  .update-changelog h6 {
+    @apply text-xs font-semibold text-fg;
+  }
+
+  .update-changelog ul {
+    @apply list-disc space-y-1 pl-5;
+  }
+
+  .update-changelog ol {
+    @apply list-decimal space-y-1 pl-5;
+  }
+
+  .update-changelog a {
+    @apply text-accent underline underline-offset-2;
+  }
+
+  .update-changelog code {
+    @apply rounded border border-border bg-bg-subtle px-1 py-0.5 font-mono text-[11px] text-fg;
+  }
+
+  .update-changelog pre {
+    @apply overflow-x-auto rounded-md border border-border bg-bg-subtle p-2;
+  }
+
+  .update-changelog pre code {
+    @apply border-0 bg-transparent p-0;
+  }
+
+  .update-changelog blockquote {
+    @apply border-l-2 border-border pl-3 text-fg-subtle;
+  }
+
+  .update-changelog table {
+    @apply w-full border-collapse text-left;
+  }
+
+  .update-changelog th,
+  .update-changelog td {
+    @apply border border-border px-2 py-1 align-top;
+  }
+
+  .update-changelog th {
+    @apply bg-bg-subtle font-semibold text-fg;
+  }
 }

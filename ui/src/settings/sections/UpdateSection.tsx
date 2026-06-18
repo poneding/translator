@@ -1,9 +1,38 @@
+import ReactMarkdown, { type Components } from "react-markdown";
 import { Download, RefreshCw } from "lucide-react";
 import { useMemo } from "react";
+import remarkGfm from "remark-gfm";
 import { useT } from "../../i18n";
+import * as api from "../../ipc/commands";
 import { useConfigStore } from "../../stores/config";
 import type { UpdateStatusDto } from "../../types/bindings";
 import type { UpdateControls } from "./useUpdateControls";
+
+const markdownComponents = {
+  a({ href, children, ...props }) {
+    const url = href?.trim() ?? "";
+    if (!/^https?:\/\//i.test(url)) {
+      return <span>{children}</span>;
+    }
+
+    return (
+      <a
+        {...props}
+        href={url}
+        rel="noreferrer"
+        target="_blank"
+        onClick={(event) => {
+          event.preventDefault();
+          void api.openExternalUrl(url).catch(() => {
+            window.open(url, "_blank", "noopener,noreferrer");
+          });
+        }}
+      >
+        {children}
+      </a>
+    );
+  },
+} satisfies Components;
 
 export function UpdateCheckButton({ controls }: { controls: UpdateControls }) {
   const t = useT();
@@ -114,9 +143,14 @@ export function UpdateSection({ controls }: { controls: UpdateControls }) {
                 <p>{t("settings-update-date", { date: status.update.date })}</p>
               )}
               {status.update.body && (
-                <p className="line-clamp-3 whitespace-pre-wrap">
-                  {status.update.body}
-                </p>
+                <div className="update-changelog">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {status.update.body}
+                  </ReactMarkdown>
+                </div>
               )}
             </div>
           )}

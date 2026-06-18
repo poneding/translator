@@ -1492,6 +1492,49 @@ mod tests {
     }
 
     #[test]
+    fn available_update_body_renders_as_markdown_changelog() {
+        let update_section_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/UpdateSection.tsx")
+            .canonicalize()
+            .expect("UpdateSection.tsx path should resolve");
+        let update_section =
+            fs::read_to_string(update_section_path).expect("UpdateSection.tsx should be readable");
+        let app_css_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/app.css")
+            .canonicalize()
+            .expect("app.css path should resolve");
+        let app_css = fs::read_to_string(app_css_path).expect("app.css should be readable");
+        let package_json_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/package.json")
+            .canonicalize()
+            .expect("package.json path should resolve");
+        let package_json =
+            fs::read_to_string(package_json_path).expect("package.json should be readable");
+
+        assert!(
+            update_section.contains("ReactMarkdown")
+                && update_section.contains("remarkGfm")
+                && update_section.contains("status.update.body")
+                && update_section.contains("update-changelog"),
+            "available update body should render through markdown with GitHub-flavored markdown enabled",
+        );
+        assert!(
+            update_section.contains("openExternalUrl(url)"),
+            "links inside update markdown should open through the trusted external URL command",
+        );
+        assert!(
+            app_css.contains(".update-changelog")
+                && app_css.contains(".update-changelog ul")
+                && app_css.contains(".update-changelog table"),
+            "markdown changelog should have local styles for common release-note elements",
+        );
+        assert!(
+            package_json.contains("\"react-markdown\"") && package_json.contains("\"remark-gfm\""),
+            "markdown rendering dependencies should be declared",
+        );
+    }
+
+    #[test]
     fn app_and_settings_install_auto_hide_scrollbars() {
         let app_source = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../ui/src/App.tsx")
