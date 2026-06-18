@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-06-18
+
+
+### Added
+
+- Add menu bar icon setting
+
+
+### Fixed
+
+- Collapse nested if in clipboard check (clippy warning)
+
+
+### Other
+
+- Focus source input when main window reactivates
+- Render update changelog as markdown
+- Hide macOS Dock icon by default
 ## [0.2.5] - 2026-06-13
 
 
