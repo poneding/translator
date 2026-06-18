@@ -1067,6 +1067,38 @@ mod tests {
     }
 
     #[test]
+    fn macos_defaults_to_menu_bar_only_without_dock_icon() {
+        let main_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+        let main_source = fs::read_to_string(main_source_path).expect("main.rs should be readable");
+        let tauri_config_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tauri.conf.json")
+            .canonicalize()
+            .expect("tauri.conf.json path should resolve");
+        let tauri_config =
+            fs::read_to_string(tauri_config_path).expect("tauri.conf.json should be readable");
+        let info_plist_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("Info.plist")
+            .canonicalize()
+            .expect("Info.plist path should resolve");
+        let info_plist =
+            fs::read_to_string(info_plist_path).expect("Info.plist should be readable");
+
+        assert!(
+            main_source.contains("ActivationPolicy::Accessory")
+                && main_source.contains("set_dock_visibility(false)"),
+            "macOS app startup should switch to accessory activation policy and hide the Dock icon",
+        );
+        assert!(
+            tauri_config.contains("\"infoPlist\": \"Info.plist\""),
+            "macOS bundle config should merge the local Info.plist override",
+        );
+        assert!(
+            info_plist.contains("<key>LSUIElement</key>") && info_plist.contains("<true/>"),
+            "Info.plist should declare LSUIElement so packaged macOS builds default to menu-bar-only mode",
+        );
+    }
+
+    #[test]
     fn macos_cdhash_only_requirement_is_unstable_for_tcc() {
         let ad_hoc_requirement = r#"Executable=/Applications/Translator.app/Contents/MacOS/translator-app
 # designated => cdhash H"43048cea4985caba72b8373a0694923c9f21a0b7""#;

@@ -68,7 +68,8 @@
     "macOS": {
       "minimumSystemVersion": "13.0",
       "exceptionDomain": "",
-      "frameworks": []
+      "frameworks": [],
+      "infoPlist": "Info.plist"
     },
     "windows": {
       "webviewInstallMode": {

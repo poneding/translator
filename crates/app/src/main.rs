@@ -12,7 +12,7 @@ mod tray;
 
 use std::sync::Arc;
 
-use tauri::Manager;
+use tauri::{ActivationPolicy, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -62,6 +62,12 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                app.set_activation_policy(ActivationPolicy::Accessory);
+                app.set_dock_visibility(false);
+            }
+
             // macOS: proactively request accessibility permission so TCC
             // re-evaluates the grant (fixes stale permission after app update).
             #[cfg(target_os = "macos")]
