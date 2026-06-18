@@ -13,7 +13,7 @@ use crate::language_direction::normalized_preferred_languages;
 use crate::model::ServiceId;
 use crate::service::ServiceConfig;
 
-const CURRENT_CONFIG_VERSION: u32 = 3;
+const CURRENT_CONFIG_VERSION: u32 = 4;
 
 /// Top-level user configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +25,10 @@ pub struct Config {
     /// General user preferences.
     #[serde(default)]
     pub general: GeneralConfig,
+
+    /// App shell preferences.
+    #[serde(default)]
+    pub app: AppConfig,
 
     /// Global hotkey in tauri-plugin-global-shortcut format
     /// (e.g. `"Cmd+T"` on macOS or `"Alt+T"` elsewhere).
@@ -89,11 +93,31 @@ pub struct GeneralConfig {
     #[serde(default)]
     pub auto_translate_clipboard_on_hotkey: bool,
     /// Register the app to launch when the user signs in.
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub launch_at_startup: bool,
     /// Optional HTTP proxy used by translation service requests.
     #[serde(default)]
     pub proxy: ProxyConfig,
+}
+
+/// App shell preferences.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppConfig {
+    /// Show the menu bar, system tray, or AppIndicator icon.
+    #[serde(default = "default_show_menu_bar_icon")]
+    pub show_menu_bar_icon: bool,
+    /// Register the app to launch when the user signs in.
+    #[serde(default)]
+    pub launch_at_startup: bool,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            show_menu_bar_icon: default_show_menu_bar_icon(),
+            launch_at_startup: false,
+        }
+    }
 }
 
 /// Main-window preferences.
@@ -202,6 +226,7 @@ impl Default for Config {
         Self {
             version: CURRENT_CONFIG_VERSION,
             general: GeneralConfig::default(),
+            app: AppConfig::default(),
             shortcut: default_shortcut(),
             services: default_services(),
             history: Vec::new(),
@@ -272,7 +297,11 @@ impl Config {
 
     /// Ensure loaded configs from older versions have every required field.
     pub fn normalized(mut self) -> Self {
+        let loaded_version = self.version;
         self.version = CURRENT_CONFIG_VERSION;
+        if loaded_version < CURRENT_CONFIG_VERSION && self.general.launch_at_startup {
+            self.app.launch_at_startup = true;
+        }
         self.general.preferred_languages = normalized_preferred_languages(
             &self.general.preferred_languages,
             &self.general.target_language,
@@ -347,6 +376,10 @@ fn default_theme() -> String {
 
 fn default_app_language() -> String {
     "system".to_string()
+}
+
+fn default_show_menu_bar_icon() -> bool {
+    true
 }
 
 fn default_window_display_position() -> String {
@@ -485,7 +518,8 @@ mod tests {
         assert_eq!(normalized.general.app_language, "system");
         assert!(normalized.general.auto_copy);
         assert!(!normalized.general.auto_translate_clipboard_on_hotkey);
-        assert!(normalized.general.launch_at_startup);
+        assert!(normalized.app.launch_at_startup);
+        assert!(normalized.app.show_menu_bar_icon);
         assert!(normalized.general.proxy.enabled);
         assert_eq!(normalized.shortcut, "Ctrl+Alt+K");
         assert_eq!(normalized.history.len(), 1);
@@ -496,6 +530,40 @@ mod tests {
         for service_id in ServiceId::all() {
             assert!(normalized.services.contains_key(service_id.as_str()));
         }
+    }
+
+    #[test]
+    fn default_config_serializes_app_settings() {
+        let value = serde_json::to_value(Config::default()).expect("config serializes");
+
+        assert_eq!(value["app"]["show_menu_bar_icon"], true);
+        assert_eq!(value["app"]["launch_at_startup"], false);
+        assert!(
+            value["general"].get("launch_at_startup").is_none(),
+            "launch_at_startup should be written under app settings",
+        );
+    }
+
+    #[test]
+    fn normalized_migrates_legacy_launch_at_startup_to_app_settings() {
+        let json = serde_json::json!({
+            "version": 3,
+            "general": {
+                "launch_at_startup": true
+            }
+        });
+
+        let config: Config = serde_json::from_value(json).expect("legacy config");
+        let normalized = config.normalized();
+        let value = serde_json::to_value(normalized).expect("normalized config serializes");
+
+        assert_eq!(value["version"], CURRENT_CONFIG_VERSION);
+        assert_eq!(value["app"]["launch_at_startup"], true);
+        assert_eq!(value["app"]["show_menu_bar_icon"], true);
+        assert!(
+            value["general"].get("launch_at_startup").is_none(),
+            "legacy launch_at_startup should not be written after migration",
+        );
     }
 
     #[test]

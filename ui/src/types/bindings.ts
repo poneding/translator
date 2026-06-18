@@ -33,8 +33,12 @@ export interface GeneralConfig {
   app_language: AppLanguageCode;
   auto_copy: boolean;
   auto_translate_clipboard_on_hotkey: boolean;
-  launch_at_startup: boolean;
   proxy: ProxyConfig;
+}
+
+export interface AppConfig {
+  show_menu_bar_icon: boolean;
+  launch_at_startup: boolean;
 }
 
 export interface ProxyConfig {
@@ -72,6 +76,7 @@ export interface HistoryItem {
 export interface Config {
   version: number;
   general: GeneralConfig;
+  app: AppConfig;
   shortcut: string;
   services: Record<string, ServiceConfig>;
   history: HistoryItem[];

@@ -15,7 +15,7 @@ use translator_core::config::{WindowConfig, WindowPosition};
 use translator_core::{Config, ServiceError, ServiceId, TranslateResult};
 use translator_platform::SelectionError;
 
-use crate::state::AppState;
+use crate::{state::AppState, tray::sync_tray_visibility};
 
 const STABLE_UPDATE_ENDPOINT: &str =
     "https://github.com/poneding/translator/releases/latest/download/latest.json";
@@ -647,12 +647,13 @@ pub fn get_config() -> Result<Config, String> {
 #[tauri::command]
 pub fn save_config<R: Runtime>(app: AppHandle<R>, config: Config) -> Result<(), String> {
     let old = Config::load().unwrap_or_default();
-    if old.general.launch_at_startup != config.general.launch_at_startup {
-        sync_autostart(&app, config.general.launch_at_startup)?;
-    }
     let config = config.normalized();
+    if old.app.launch_at_startup != config.app.launch_at_startup {
+        sync_autostart(&app, config.app.launch_at_startup)?;
+    }
     config.save().map_err(|e| e.to_string())?;
     apply_main_window_always_on_top(&app, config.window.always_on_top)?;
+    sync_tray_visibility(&app, config.app.show_menu_bar_icon).map_err(|e| e.to_string())?;
     let _ = app.emit("translator://config-updated", &config);
     Ok(())
 }
@@ -1081,7 +1082,7 @@ mod tests {
             .canonicalize()
             .expect("Info.plist path should resolve");
         let info_plist =
-            fs::read_to_string(info_plist_path).expect("Info.plist should be readable");
+            fs::read_to_string(&info_plist_path).expect("Info.plist should be readable");
 
         assert!(
             main_source.contains("ActivationPolicy::Accessory")
@@ -1089,12 +1090,48 @@ mod tests {
             "macOS app startup should switch to accessory activation policy and hide the Dock icon",
         );
         assert!(
-            tauri_config.contains("\"infoPlist\": \"Info.plist\""),
-            "macOS bundle config should merge the local Info.plist override",
+            !tauri_config.contains("\"infoPlist\"") && info_plist_path.exists(),
+            "macOS bundle config should rely on the local Info.plist override file",
         );
         assert!(
             info_plist.contains("<key>LSUIElement</key>") && info_plist.contains("<true/>"),
             "Info.plist should declare LSUIElement so packaged macOS builds default to menu-bar-only mode",
+        );
+    }
+
+    #[test]
+    fn startup_respects_menu_bar_icon_app_setting() {
+        let main_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+        let main_source = fs::read_to_string(main_source_path).expect("main.rs should be readable");
+
+        assert!(
+            main_source.contains("cfg.app.show_menu_bar_icon"),
+            "startup should create the tray/menu-bar icon based on the app setting",
+        );
+        assert!(
+            !main_source.contains("// Build tray.\n            tray::build_tray(app.handle())?;"),
+            "startup should not build the tray/menu-bar icon unconditionally",
+        );
+    }
+
+    #[test]
+    fn save_config_synchronizes_app_shell_settings() {
+        let commands_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands.rs");
+        let commands_source =
+            fs::read_to_string(commands_source_path).expect("commands.rs should be readable");
+        let production_source = commands_source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("commands.rs should contain production source");
+
+        assert!(
+            production_source.contains("old.app.launch_at_startup")
+                && production_source.contains("config.app.launch_at_startup"),
+            "save_config should sync autostart from app settings",
+        );
+        assert!(
+            production_source.contains("sync_tray_visibility(&app, config.app.show_menu_bar_icon)"),
+            "save_config should immediately sync tray/menu-bar visibility",
         );
     }
 
@@ -1414,6 +1451,40 @@ mod tests {
                 && source.contains(": \"remember\""),
             "settings window position selector should offer remembered position and normalize unknown values to remember",
         );
+    }
+
+    #[test]
+    fn app_shell_controls_live_in_general_settings() {
+        let settings_app_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/SettingsApp.tsx")
+            .canonicalize()
+            .expect("SettingsApp.tsx path should resolve");
+        let settings_app =
+            fs::read_to_string(settings_app_path).expect("SettingsApp.tsx should be readable");
+        let general_section_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/settings/sections/GeneralSection.tsx")
+            .canonicalize()
+            .expect("GeneralSection.tsx path should resolve");
+        let general_section = fs::read_to_string(general_section_path)
+            .expect("GeneralSection.tsx should be readable");
+
+        assert!(
+            !settings_app.contains("AppSection")
+                && !settings_app.contains("\"settings-nav-app\"")
+                && !settings_app.contains("id: \"app\""),
+            "settings UI should not expose a separate App settings group",
+        );
+        for required in [
+            "config.app.show_menu_bar_icon",
+            "config.app.launch_at_startup",
+            "settings-general-show-menu-bar-icon",
+            "settings-general-launch-at-startup",
+        ] {
+            assert!(
+                general_section.contains(required),
+                "General settings should contain {required:?}",
+            );
+        }
     }
 
     #[test]

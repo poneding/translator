@@ -99,6 +99,7 @@ settings-general-duplicate-language = The two preferred languages must be differ
 settings-general-auto-copy = Auto-copy first successful result
 settings-general-clipboard-hotkey = Use clipboard text when hotkey opens with no selection
 settings-general-launch-at-startup = Launch at startup
+settings-general-show-menu-bar-icon = Show menu bar icon
 settings-general-window-position = 開啟視窗時預設顯示位置
 settings-general-window-position-remember = 記住上次位置
 settings-general-window-position-right = 螢幕右上角

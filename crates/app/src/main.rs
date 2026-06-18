@@ -76,17 +76,17 @@ fn main() {
                 tracing::debug!(trusted, "macOS accessibility permission state");
             }
 
+            let mut cfg = translator_core::config::Config::load()
+                .unwrap_or_else(|_| translator_core::config::Config::default());
+
             // Build app state.
             let state = AppState::new();
             app.manage(Arc::new(state));
 
-            // Build tray.
-            tray::build_tray(app.handle())?;
+            tray::sync_tray_visibility(app.handle(), cfg.app.show_menu_bar_icon)?;
 
             // BH-1.5: if the previous run failed to register its hotkey, fall
             // back to the default shortcut and clear the banner flag.
-            let mut cfg = translator_core::config::Config::load()
-                .unwrap_or_else(|_| translator_core::config::Config::default());
             let default_shortcut = translator_core::config::Config::default().shortcut;
             if cfg.hotkey_registration_failed {
                 tracing::warn!(

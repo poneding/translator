@@ -18,6 +18,7 @@ use tauri::{
 use crate::commands;
 
 const TRAY_ICON_BYTES: &[u8] = include_bytes!("../icons/icon.png");
+const TRAY_ID: &str = "main";
 #[cfg(target_os = "macos")]
 const MACOS_TRAY_ICON_PADDING_PX: u32 = 24;
 #[cfg(target_os = "macos")]
@@ -25,6 +26,10 @@ const MACOS_TEMPLATE_GLYPH_CHANNEL_FLOOR: u8 = 130;
 
 /// Build the tray icon and menu.
 pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    if app.tray_by_id(TRAY_ID).is_some() {
+        return Ok(());
+    }
+
     let open_main = MenuItem::with_id(app, "open_main", "Open Translator", true, None::<&str>)?;
     let open_settings =
         MenuItem::with_id(app, "open_settings", "Open Settings", true, None::<&str>)?;
@@ -34,7 +39,7 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
     let icon = load_tray_icon().map_err(|e| tauri::Error::AssetNotFound(e.to_string()))?;
 
-    TrayIconBuilder::with_id("main")
+    TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .icon_as_template(true)
         .tooltip("Translator")
@@ -72,6 +77,18 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .build(app)?;
 
     Ok(())
+}
+
+pub fn sync_tray_visibility<R: Runtime>(
+    app: &AppHandle<R>,
+    show_menu_bar_icon: bool,
+) -> tauri::Result<()> {
+    if show_menu_bar_icon {
+        build_tray(app)
+    } else {
+        let _ = app.remove_tray_by_id(TRAY_ID);
+        Ok(())
+    }
 }
 
 fn load_tray_icon() -> tauri::Result<Image<'static>> {

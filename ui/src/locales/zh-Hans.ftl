@@ -99,6 +99,7 @@ settings-general-duplicate-language = 两个偏好语言必须不同。
 settings-general-auto-copy = 自动复制第一个成功结果
 settings-general-clipboard-hotkey = 快捷键打开且无选中文本时使用剪贴板文本
 settings-general-launch-at-startup = 登录时启动
+settings-general-show-menu-bar-icon = 显示菜单栏图标
 settings-general-window-position = 打开窗口时默认显示位置
 settings-general-window-position-remember = 记忆上次位置
 settings-general-window-position-right = 屏幕右上角

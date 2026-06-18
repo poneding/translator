@@ -170,12 +170,31 @@ export function GeneralSection() {
           <input
             type="checkbox"
             className="checkbox"
-            checked={config.general.launch_at_startup}
+            checked={config.app.show_menu_bar_icon}
             onChange={(e) =>
               void save({
                 ...config,
-                general: {
-                  ...config.general,
+                app: {
+                  ...config.app,
+                  show_menu_bar_icon: e.target.checked,
+                },
+              })
+            }
+          />
+          <span className="min-w-0 leading-5">
+            {t("settings-general-show-menu-bar-icon")}
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="checkbox"
+            checked={config.app.launch_at_startup}
+            onChange={(e) =>
+              void save({
+                ...config,
+                app: {
+                  ...config.app,
                   launch_at_startup: e.target.checked,
                 },
               })
