@@ -1103,13 +1103,15 @@ mod tests {
     fn macos_activation_policy_import_is_cfg_gated() {
         let main_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
         let main_source = fs::read_to_string(main_source_path).expect("main.rs should be readable");
+        let normalized_main_source = main_source.replace("\r\n", "\n");
 
         assert!(
             !main_source.contains("use tauri::{ActivationPolicy, Manager};"),
             "ActivationPolicy is macOS-only in Tauri and must not be imported on every target",
         );
         assert!(
-            main_source.contains("#[cfg(target_os = \"macos\")]\nuse tauri::ActivationPolicy;")
+            normalized_main_source
+                .contains("#[cfg(target_os = \"macos\")]\nuse tauri::ActivationPolicy;")
                 && main_source.contains("use tauri::Manager;"),
             "main.rs should cfg-gate ActivationPolicy while importing cross-platform Tauri traits normally",
         );
