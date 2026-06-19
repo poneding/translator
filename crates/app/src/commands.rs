@@ -324,8 +324,7 @@ pub fn restart_app<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
         let _ = remember_main_webview_window_position(&window);
     }
-    app.request_restart();
-    Ok(())
+    app.restart();
 }
 
 pub(crate) fn show_main_window<R: Runtime>(
@@ -1537,6 +1536,10 @@ mod tests {
     fn restart_action_is_available_from_tray_and_ipc() {
         let commands_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands.rs");
         let commands = fs::read_to_string(commands_path).expect("commands.rs should be readable");
+        let production_commands = commands
+            .split("#[cfg(test)]")
+            .next()
+            .expect("commands.rs should contain production source");
         let main_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
         let main = fs::read_to_string(main_path).expect("main.rs should be readable");
         let tray_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tray.rs");
@@ -1549,10 +1552,11 @@ mod tests {
             fs::read_to_string(frontend_commands_path).expect("commands.ts should be readable");
 
         assert!(
-            commands.contains("pub fn restart_app")
-                && commands.contains("request_restart()")
-                && commands.contains("remember_main_webview_window_position"),
-            "restart command should remember window position and request an app restart",
+            production_commands.contains("pub fn restart_app")
+                && production_commands.contains("app.restart();")
+                && !production_commands.contains("app.request_restart();")
+                && production_commands.contains("remember_main_webview_window_position"),
+            "restart command should remember window position and restart the app",
         );
         assert!(
             main.contains("commands::restart_app")

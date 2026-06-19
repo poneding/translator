@@ -35,3 +35,6 @@ md5 = "0.8"
 wiremock = { workspace = true }
 pretty_assertions = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { workspace = true }

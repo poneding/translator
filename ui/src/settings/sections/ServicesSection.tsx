@@ -245,6 +245,12 @@ function ServiceRow({
           cancelled = true;
         };
       }
+      if (!expanded) {
+        setKeyState("unknown");
+        return () => {
+          cancelled = true;
+        };
+      }
       api
         .hasApiKey(meta.id)
         .then((hasKey) => {
@@ -254,6 +260,12 @@ function ServiceRow({
           if (!cancelled) setKeyState("builtin");
         });
     } else if (meta.needsKey === "optional_single") {
+      if (!expanded) {
+        setKeyState("builtin");
+        return () => {
+          cancelled = true;
+        };
+      }
       api
         .hasApiKey(meta.id)
         .then((has) => {
@@ -263,6 +275,12 @@ function ServiceRow({
           if (!cancelled) setKeyState("builtin");
         });
     } else {
+      if (!expanded) {
+        setKeyState("unknown");
+        return () => {
+          cancelled = true;
+        };
+      }
       api
         .hasApiKey(meta.id)
         .then((has) => {
@@ -277,6 +295,7 @@ function ServiceRow({
     };
   }, [
     credentialVersion,
+    expanded,
     meta.id,
     meta.needsKey,
     options.appKey,

@@ -66,9 +66,14 @@ pub fn get_api_key(service_id: &str) -> Result<Option<String>> {
 }
 
 /// Cheap boolean probe used at dispatch time to decide whether a service has a
-/// usable credential (BH-4.3). Returns `false` for both "not set" and keyring
-/// errors, so the caller can safely skip the service silently in either case.
+/// usable credential (BH-4.3). On macOS this uses a non-interactive attributes
+/// query so settings status checks never trigger Keychain password prompts.
 pub fn has_api_key(service_id: &str) -> Result<bool> {
+    has_api_key_impl(service_id)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn has_api_key_impl(service_id: &str) -> Result<bool> {
     match keyring_entry(service_id) {
         Ok(entry) => match entry.get_password() {
             Ok(_) => Ok(true),
@@ -82,6 +87,55 @@ pub fn has_api_key(service_id: &str) -> Result<bool> {
             tracing::warn!(%service_id, %error, "keyring entry failed; trying local fallback");
             Ok(get_fallback_api_key(service_id)?.is_some())
         }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn has_api_key_impl(service_id: &str) -> Result<bool> {
+    match macos_keychain_entry_exists_without_prompt(service_id) {
+        Ok(true) => Ok(true),
+        Ok(false) => Ok(get_fallback_api_key(service_id)?.is_some()),
+        Err(error) => {
+            tracing::warn!(
+                %service_id,
+                %error,
+                "non-interactive keyring probe failed; trying local fallback"
+            );
+            if get_fallback_api_key(service_id)?.is_some() {
+                return Ok(true);
+            }
+            Err(anyhow::anyhow!(error))
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_keychain_entry_exists_without_prompt(
+    service_id: &str,
+) -> std::result::Result<bool, String> {
+    use security_framework::item::{ItemClass, ItemSearchOptions};
+
+    const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
+    const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
+
+    ensure_keyring_store()?;
+
+    let mut search = ItemSearchOptions::new();
+    search
+        .class(ItemClass::generic_password())
+        .service(SERVICE_NAME)
+        .account(&format!("api_key:{service_id}"))
+        .load_attributes(true)
+        .skip_authenticated_items(true)
+        .limit(1);
+
+    match search.search() {
+        Ok(items) => Ok(!items.is_empty()),
+        Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(false),
+        Err(error) if error.code() == ERR_SEC_INTERACTION_NOT_ALLOWED => {
+            Err("keychain item exists but requires user interaction".to_string())
+        }
+        Err(error) => Err(error.to_string()),
     }
 }
 
@@ -156,6 +210,8 @@ fn delete_fallback_api_key(service_id: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, path::Path};
+
     use super::*;
 
     // Use a unique service id so this test does not collide with any real key
@@ -198,6 +254,26 @@ mod tests {
         assert!(
             !has_api_key(ROUND_TRIP_TEST_SVC).unwrap(),
             "should be unset after delete"
+        );
+    }
+
+    #[test]
+    fn macos_keychain_probe_is_non_interactive() {
+        let source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/secrets.rs");
+        let source = fs::read_to_string(source_path).expect("secrets.rs should be readable");
+        let probe = source
+            .split("fn macos_keychain_entry_exists_without_prompt")
+            .nth(1)
+            .expect("macOS keychain probe should exist");
+
+        assert!(
+            probe.contains(".load_attributes(true)")
+                && probe.contains(".skip_authenticated_items(true)"),
+            "macOS keychain status probe should load attributes only and suppress authentication UI",
+        );
+        assert!(
+            !probe.contains("get_password()") && !probe.contains(".load_data(true)"),
+            "macOS keychain status probe must not read secret data",
         );
     }
 }
