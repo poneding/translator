@@ -3,6 +3,11 @@
 
 app-name = Translator
 app-tagline = 跨平台选词翻译
+tray-open-main = 主界面
+tray-open-settings = 设置
+tray-check-update = 检查更新
+tray-restart = 重新启动
+tray-quit = 退出
 
 # Common
 common-loading = 加载中…

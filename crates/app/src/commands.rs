@@ -15,7 +15,10 @@ use translator_core::config::{WindowConfig, WindowPosition};
 use translator_core::{Config, ServiceError, ServiceId, TranslateResult};
 use translator_platform::SelectionError;
 
-use crate::{state::AppState, tray::sync_tray_visibility};
+use crate::{
+    state::AppState,
+    tray::{rebuild_tray, sync_tray_visibility},
+};
 
 const STABLE_UPDATE_ENDPOINT: &str =
     "https://github.com/poneding/translator/releases/latest/download/latest.json";
@@ -652,7 +655,14 @@ pub fn save_config<R: Runtime>(app: AppHandle<R>, config: Config) -> Result<(), 
     }
     config.save().map_err(|e| e.to_string())?;
     apply_main_window_always_on_top(&app, config.window.always_on_top)?;
-    sync_tray_visibility(&app, config.app.show_menu_bar_icon).map_err(|e| e.to_string())?;
+    if config.app.show_menu_bar_icon
+        && old.app.show_menu_bar_icon
+        && old.general.app_language != config.general.app_language
+    {
+        rebuild_tray(&app).map_err(|e| e.to_string())?;
+    } else {
+        sync_tray_visibility(&app, config.app.show_menu_bar_icon).map_err(|e| e.to_string())?;
+    }
     let _ = app.emit("translator://config-updated", &config);
     Ok(())
 }
@@ -1150,6 +1160,11 @@ mod tests {
             production_source.contains("sync_tray_visibility(&app, config.app.show_menu_bar_icon)"),
             "save_config should immediately sync tray/menu-bar visibility",
         );
+        assert!(
+            production_source.contains("old.general.app_language != config.general.app_language")
+                && production_source.contains("rebuild_tray(&app)"),
+            "save_config should rebuild the tray/menu-bar menu when the app language changes",
+        );
     }
 
     #[test]
@@ -1566,9 +1581,85 @@ mod tests {
         );
         assert!(
             tray.contains("\"restart\"")
-                && tray.contains("Restart Translator")
+                && tray.contains("tray-restart")
+                && tray.contains("&labels.restart")
                 && tray.contains("commands::restart_app(app.clone())"),
-            "tray/menu-bar menu should expose a restart item that uses the shared restart command",
+            "tray/menu-bar menu should expose a localized restart item that uses the shared restart command",
+        );
+    }
+
+    #[test]
+    fn check_update_action_opens_settings_update_section_from_tray() {
+        let tray_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tray.rs");
+        let tray = fs::read_to_string(tray_path).expect("tray.rs should be readable");
+        let app_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/App.tsx")
+            .canonicalize()
+            .expect("App.tsx path should resolve");
+        let app = fs::read_to_string(app_path).expect("App.tsx should be readable");
+        let settings_app_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/SettingsApp.tsx")
+            .canonicalize()
+            .expect("SettingsApp.tsx path should resolve");
+        let settings_app =
+            fs::read_to_string(settings_app_path).expect("SettingsApp.tsx should be readable");
+        let frontend_commands_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/ipc/commands.ts")
+            .canonicalize()
+            .expect("frontend commands path should resolve");
+        let frontend_commands =
+            fs::read_to_string(frontend_commands_path).expect("commands.ts should be readable");
+        let en_locale_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/locales/en.ftl")
+            .canonicalize()
+            .expect("en locale path should resolve");
+        let en_locale = fs::read_to_string(en_locale_path).expect("en locale should be readable");
+        let zh_locale_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../ui/src/locales/zh-Hans.ftl")
+            .canonicalize()
+            .expect("zh-Hans locale path should resolve");
+        let zh_locale =
+            fs::read_to_string(zh_locale_path).expect("zh-Hans locale should be readable");
+
+        assert!(
+            tray.contains("\"check_update\"")
+                && tray.contains("tray-check-update")
+                && tray.contains("translator://check-update"),
+            "tray/menu-bar menu should expose a localized check-update item that emits the check-update event",
+        );
+        assert!(
+            frontend_commands.contains("onCheckUpdateRequested")
+                && frontend_commands.contains("translator://check-update"),
+            "frontend IPC should listen for the check-update menu event",
+        );
+        assert!(
+            app.contains("api.onCheckUpdateRequested")
+                && app.contains("setActiveView(\"settings\")")
+                && app.contains("checkUpdate: true")
+                && app.contains("section: \"update\""),
+            "main window should switch to settings and request the update section check",
+        );
+        assert!(
+            settings_app.contains("scrollIntoView")
+                && settings_app.contains("void checkForUpdates()")
+                && settings_app.contains("scroll-pt-3")
+                && settings_app.contains("scroll-mt-3")
+                && settings_app.contains("onRequestHandled"),
+            "settings view should scroll to the requested section with top breathing room and start update detection once",
+        );
+        assert!(
+            en_locale.contains("tray-check-update = Check for Updates")
+                && zh_locale.contains("tray-check-update = 检查更新"),
+            "check-update tray action should be localized in English and Simplified Chinese",
+        );
+        assert!(
+            en_locale.contains("tray-open-main = Main")
+                && en_locale.contains("tray-open-settings = Settings")
+                && en_locale.contains("tray-restart = Restart")
+                && zh_locale.contains("tray-open-main = 主界面")
+                && zh_locale.contains("tray-open-settings = 设置")
+                && zh_locale.contains("tray-restart = 重新启动"),
+            "primary tray actions should use short localized labels",
         );
     }
 

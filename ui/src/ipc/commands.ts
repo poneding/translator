@@ -171,6 +171,12 @@ export function onOpenSettingsRequested(
   return listen("translator://open-settings", () => handler());
 }
 
+export function onCheckUpdateRequested(
+  handler: () => void,
+): Promise<UnlistenFn> {
+  return listen("translator://check-update", () => handler());
+}
+
 export function onOpenMainRequested(handler: () => void): Promise<UnlistenFn> {
   return listen("translator://open-main", () => handler());
 }

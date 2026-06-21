@@ -34,7 +34,7 @@ import {
   type TFunction,
 } from "./i18n/languages";
 import * as api from "./ipc/commands";
-import { SettingsView } from "./SettingsApp";
+import { SettingsView, type SettingsViewRequest } from "./SettingsApp";
 import { ServiceLogo } from "./services/ServiceLogo";
 import { serviceMeta } from "./services/serviceMeta";
 import { useConfigStore } from "./stores/config";
@@ -65,10 +65,13 @@ export function App() {
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeView, setActiveView] = useState<AppView>("main");
+  const [settingsRequest, setSettingsRequest] =
+    useState<SettingsViewRequest | null>(null);
   const [refreshingServices, setRefreshingServices] = useState<Set<ServiceId>>(
     () => new Set(),
   );
   const requestIdRef = useRef<string | null>(null);
+  const nextSettingsRequestId = useRef(0);
   const serviceRequestIdsRef = useRef<Partial<Record<ServiceId, string>>>({});
 
   useTheme(config?.general.theme as "system" | "light" | "dark" | undefined);
@@ -125,18 +128,32 @@ export function App() {
   useEffect(() => {
     const unlistenSettingsPromise = api.onOpenSettingsRequested(() => {
       setHistoryOpen(false);
+      setSettingsRequest(null);
+      setActiveView("settings");
+    });
+    const unlistenCheckUpdatePromise = api.onCheckUpdateRequested(() => {
+      setHistoryOpen(false);
+      nextSettingsRequestId.current += 1;
+      setSettingsRequest({
+        id: nextSettingsRequestId.current,
+        checkUpdate: true,
+        section: "update",
+      });
       setActiveView("settings");
     });
     const unlistenMainPromise = api.onOpenMainRequested(() => {
       setHistoryOpen(false);
+      setSettingsRequest(null);
       setActiveView("main");
     });
     return () => {
-      void Promise.all([unlistenSettingsPromise, unlistenMainPromise]).then(
-        (unlisteners) => {
-          for (const unlisten of unlisteners) unlisten();
-        },
-      );
+      void Promise.all([
+        unlistenSettingsPromise,
+        unlistenCheckUpdatePromise,
+        unlistenMainPromise,
+      ]).then((unlisteners) => {
+        for (const unlisten of unlisteners) unlisten();
+      });
     };
   }, []);
 
@@ -392,7 +409,18 @@ export function App() {
 
       {activeView === "settings" ? (
         <div className="min-h-0 flex-1">
-          <SettingsView onBack={() => setActiveView("main")} />
+          <SettingsView
+            request={settingsRequest}
+            onBack={() => {
+              setSettingsRequest(null);
+              setActiveView("main");
+            }}
+            onRequestHandled={(id) =>
+              setSettingsRequest((current) =>
+                current?.id === id ? null : current,
+              )
+            }
+          />
         </div>
       ) : (
         <main

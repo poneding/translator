@@ -3,6 +3,11 @@
 
 app-name = Translator
 app-tagline = Cross-platform select-and-translate
+tray-open-main = 主畫面
+tray-open-settings = 設定
+tray-check-update = 檢查更新
+tray-restart = 重新啟動
+tray-quit = 結束
 
 # Common
 common-loading = Loading…

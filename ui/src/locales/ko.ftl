@@ -3,6 +3,11 @@
 
 app-name = Translator
 app-tagline = Cross-platform select-and-translate
+tray-open-main = 메인 화면
+tray-open-settings = 설정
+tray-check-update = 업데이트 확인
+tray-restart = 다시 시작
+tray-quit = 종료
 
 # Common
 common-loading = Loading…

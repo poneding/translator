@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAutoHideScrollbars } from "./hooks/useAutoHideScrollbars";
 import { useTheme } from "./hooks/useTheme";
 import { setLocale, useT } from "./i18n";
@@ -28,7 +28,7 @@ import {
 import { useUpdateControls } from "./settings/sections/useUpdateControls";
 import { useConfigStore } from "./stores/config";
 
-type SectionId =
+export type SectionId =
   | "general"
   | "proxy"
   | "services"
@@ -37,9 +37,18 @@ type SectionId =
   | "update"
   | "about";
 
+export interface SettingsViewRequest {
+  id: number;
+  checkUpdate?: boolean;
+  section: SectionId;
+}
+
 export function SettingsApp() {
   const { config, load, loading, error, setConfig } = useConfigStore();
   const t = useT();
+  const [settingsRequest, setSettingsRequest] =
+    useState<SettingsViewRequest | null>(null);
+  const nextSettingsRequestId = useRef(0);
 
   useTheme(config?.general.theme as "system" | "light" | "dark" | undefined);
   useAutoHideScrollbars();
@@ -72,6 +81,20 @@ export function SettingsApp() {
     };
   }, [setConfig]);
 
+  useEffect(() => {
+    const unlistenPromise = api.onCheckUpdateRequested(() => {
+      nextSettingsRequestId.current += 1;
+      setSettingsRequest({
+        id: nextSettingsRequestId.current,
+        checkUpdate: true,
+        section: "update",
+      });
+    });
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
   if (loading && !config) {
     return (
       <div className="p-8 text-fg-subtle">
@@ -92,12 +115,29 @@ export function SettingsApp() {
   }
   if (!config) return null;
 
-  return <SettingsView />;
+  return (
+    <SettingsView
+      request={settingsRequest}
+      onRequestHandled={(id) =>
+        setSettingsRequest((current) => (current?.id === id ? null : current))
+      }
+    />
+  );
 }
 
-export function SettingsView({ onBack }: { onBack?: () => void }) {
+export function SettingsView({
+  onBack,
+  onRequestHandled,
+  request,
+}: {
+  onBack?: () => void;
+  onRequestHandled?: (id: number) => void;
+  request?: SettingsViewRequest | null;
+}) {
   const t = useT();
   const updateControls = useUpdateControls();
+  const { check: checkForUpdates } = updateControls;
+  const handledRequestId = useRef<number | null>(null);
   const sections: {
     id: SectionId;
     label: string;
@@ -148,6 +188,26 @@ export function SettingsView({ onBack }: { onBack?: () => void }) {
     },
   ];
 
+  useEffect(() => {
+    if (!request || handledRequestId.current === request.id) return;
+    handledRequestId.current = request.id;
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(request.section)
+        ?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    if (request.checkUpdate) void checkForUpdates();
+    onRequestHandled?.(request.id);
+  }, [
+    checkForUpdates,
+    onRequestHandled,
+    request,
+    request?.checkUpdate,
+    request?.id,
+    request?.section,
+  ]);
+
   return (
     <div className="flex h-full min-h-0 bg-bg text-fg">
       <aside className="w-fit min-w-[8.5rem] max-w-[11rem] shrink-0 border-r border-border bg-bg-subtle p-3">
@@ -177,7 +237,7 @@ export function SettingsView({ onBack }: { onBack?: () => void }) {
           ))}
         </nav>
       </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto p-6">
+      <main className="min-w-0 flex-1 overflow-y-auto scroll-pt-3 p-6">
         <div className="mx-auto max-w-3xl space-y-6">
           <SettingsSection
             id="general"
@@ -249,7 +309,7 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="space-y-3">
+    <section id={id} className="scroll-mt-3 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold">
           <Icon

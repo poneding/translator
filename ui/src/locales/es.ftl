@@ -3,6 +3,11 @@
 
 app-name = Translator
 app-tagline = Cross-platform select-and-translate
+tray-open-main = Inicio
+tray-open-settings = Ajustes
+tray-check-update = Buscar actualizaciones
+tray-restart = Reiniciar
+tray-quit = Salir
 
 # Common
 common-loading = Loading…
