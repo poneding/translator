@@ -207,3 +207,11 @@ settings-about-version-line = v{ $version } - 跨平台选词翻译。
 settings-about-commit = 提交：
 settings-about-built = 构建：
 settings-about-source = 源码：
+
+# Dictionary result sections
+main-synonyms = 同义词
+main-antonyms = 反义词
+main-collocation = 搭配
+main-etymology = 词源
+main-alternatives = 备选译文
+main-open-link = 打开链接

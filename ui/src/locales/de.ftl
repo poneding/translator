@@ -207,3 +207,11 @@ settings-about-version-line = v{ $version } - cross-platform select-and-translat
 settings-about-commit = Commit:
 settings-about-built = Built:
 settings-about-source = Source:
+
+# Dictionary result sections
+main-synonyms = Synonyme
+main-antonyms = Antonyme
+main-collocation = Kollokation
+main-etymology = Etymologie
+main-alternatives = Alternativen
+main-open-link = Link öffnen
