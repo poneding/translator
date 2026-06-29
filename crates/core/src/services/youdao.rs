@@ -20,7 +20,7 @@ use crate::audio::youdao_text_audio_url;
 use crate::error::{ServiceError, ServiceResult};
 use crate::model::{
     DictionaryPart, DictionaryResult, ServiceId, SimpleDictionaryWord, TranslateRequest,
-    TranslateResult, WordExchange, WordPhonetic,
+    TranslateResult, WordExchange, WordPhonetic, part_abbreviation,
 };
 use crate::service::{ApiKeyRequirement, ServiceConfig, TranslationService};
 
@@ -834,25 +834,6 @@ fn dict_voice_url_from_speech(speech: &str, web_base_url: &str) -> Option<String
         }
     }
     Some(url.to_string())
-}
-
-fn part_abbreviation(part: &str) -> String {
-    let normalized = part.trim().trim_end_matches('.').to_ascii_lowercase();
-    let mapped = match normalized.as_str() {
-        "adjective" | "形容词" | "adj" => "adj.",
-        "adverb" | "副词" | "adv" => "adv.",
-        "verb" | "动词" | "v" => "v.",
-        "noun" | "名词" | "n" => "n.",
-        "pronoun" | "代词" | "pron" => "pron.",
-        "preposition" | "介词" | "prep" => "prep.",
-        "conjunction" | "连词" | "conj" => "conj.",
-        "interjection" | "感叹词" | "int" | "interj" => "int.",
-        "article" | "冠词" | "art" => "art.",
-        "numeral" | "数词" | "num" => "num.",
-        "web" => "Web",
-        _ => part.trim(),
-    };
-    mapped.to_string()
 }
 
 #[async_trait]
