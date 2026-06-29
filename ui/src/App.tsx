@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Check,
   Copy,
+  ExternalLink,
   History as HistoryIcon,
   Minus,
   Pin,
@@ -39,6 +40,7 @@ import { ServiceLogo } from "./services/ServiceLogo";
 import { serviceMeta } from "./services/serviceMeta";
 import { useConfigStore } from "./stores/config";
 import type {
+  DictionaryPart,
   GeneralConfig,
   DictionaryResult,
   HistoryItem,
@@ -470,6 +472,7 @@ export function App() {
             <ResultsPanel
               busy={busy}
               outcomes={outcomes}
+              sourceText={text}
               refreshingServices={refreshingServices}
               onRefreshService={(serviceId) => void refreshService(serviceId)}
             />
@@ -942,11 +945,13 @@ function TranslationErrorPanel({ message }: { message: string }) {
 function ResultsPanel({
   outcomes,
   busy,
+  sourceText,
   refreshingServices,
   onRefreshService,
 }: {
   outcomes: ServiceOutcomeDto[];
   busy: boolean;
+  sourceText: string;
   refreshingServices: Set<ServiceId>;
   onRefreshService: (serviceId: ServiceId) => void;
 }) {
@@ -972,6 +977,7 @@ function ResultsPanel({
           <ResultCard
             key={outcome.service_id}
             outcome={outcome}
+            sourceText={sourceText}
             refreshing={refreshingServices.has(outcome.service_id)}
             onRefresh={() => onRefreshService(outcome.service_id)}
           />
@@ -983,10 +989,12 @@ function ResultsPanel({
 
 function ResultCard({
   outcome,
+  sourceText,
   refreshing,
   onRefresh,
 }: {
   outcome: ServiceOutcomeDto;
+  sourceText: string;
   refreshing: boolean;
   onRefresh: () => void;
 }) {
@@ -1022,6 +1030,7 @@ function ResultCard({
       {outcome.result ? (
         <ResultBody
           result={outcome.result}
+          sourceText={sourceText}
           copied={copied}
           onCopied={() => setCopied(true)}
         />
@@ -1046,53 +1055,44 @@ function PendingResult() {
 
 function ResultBody({
   result,
+  sourceText,
   copied,
   onCopied,
 }: {
   result: TranslateResult;
+  sourceText: string;
   copied: boolean;
   onCopied: () => void;
 }) {
-  const t = useT();
-  const targetDictionary = result.target_dictionary ?? null;
+  const dictionary =
+    result.source_dictionary ?? result.dictionary ?? result.target_dictionary ?? null;
+  const showBigWord = isShortWord(sourceText) && dictionary != null;
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      {showBigWord && (
+        <p className="break-all text-xl font-semibold leading-snug">
+          {sourceText}
+        </p>
+      )}
+      <div className="space-y-1">
         <p className="min-w-0 whitespace-pre-wrap text-sm leading-6">
           {result.text}
         </p>
-        <div className="flex shrink-0 items-center gap-1">
-          <AudioButton
-            audioKey={`result:${result.service_id}:${result.audio_url ?? ""}`}
-            className="icon-btn btn-ghost !h-7 !w-7"
-            url={result.audio_url ?? null}
-          />
-          <button
-            className="icon-btn btn-ghost !h-7 !w-7"
-            onClick={async () => {
-              await api.copyToClipboard(result.text);
-              onCopied();
-            }}
-            title={
-              copied
-                ? t("common-copied", null, "Copied")
-                : t("common-copy", null, "Copy")
-            }
-            aria-label={
-              copied
-                ? t("common-copied", null, "Copied")
-                : t("common-copy", null, "Copy")
-            }
-          >
-            {copied ? (
-              <Check size={15} aria-hidden="true" />
-            ) : (
-              <Copy size={15} aria-hidden="true" />
-            )}
-          </button>
-        </div>
+        {result.alternatives && result.alternatives.length > 0 && (
+          <ul className="list-disc space-y-0.5 pl-4 text-sm text-fg-subtle">
+            {result.alternatives.map((alt, index) => (
+              <li key={index}>{alt}</li>
+            ))}
+          </ul>
+        )}
       </div>
-      <DictionaryDetails dictionary={targetDictionary} />
+      <DictionaryDetails dictionary={dictionary} />
+      <ResultToolbar
+        result={result}
+        sourceText={sourceText}
+        copied={copied}
+        onCopied={onCopied}
+      />
     </div>
   );
 }
@@ -1153,18 +1153,27 @@ function DictionaryDetails({
   dictionary?: DictionaryResult | null;
   showPhonetics?: boolean;
 }) {
+  const t = useT();
   const phonetics = showPhonetics ? (dictionary?.phonetics ?? []) : [];
   const parts = dictionary?.parts ?? [];
-  const simpleWords = dictionary?.simple_words ?? [];
   const exchanges = dictionary?.exchanges ?? [];
+  const simpleWords = dictionary?.simple_words ?? [];
   const tags = dictionary?.tags ?? [];
+  const synonyms = dictionary?.synonyms ?? [];
+  const antonyms = dictionary?.antonyms ?? [];
+  const collocation = dictionary?.collocation ?? [];
+  const etymology = dictionary?.etymology ?? null;
 
   if (
     phonetics.length === 0 &&
     parts.length === 0 &&
-    simpleWords.length === 0 &&
     exchanges.length === 0 &&
-    tags.length === 0
+    simpleWords.length === 0 &&
+    tags.length === 0 &&
+    synonyms.length === 0 &&
+    antonyms.length === 0 &&
+    collocation.length === 0 &&
+    !etymology
   ) {
     return null;
   }
@@ -1222,6 +1231,29 @@ function DictionaryDetails({
         </div>
       )}
 
+      {exchanges.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-fg-subtle">
+          {exchanges.map((exchange) => (
+            <span key={exchange.name}>
+              {exchange.name}: {exchange.words.join(", ")}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {synonyms.length > 0 && (
+        <PartGroup title={t("main-synonyms", null, "Synonyms")} parts={synonyms} />
+      )}
+      {antonyms.length > 0 && (
+        <PartGroup title={t("main-antonyms", null, "Antonyms")} parts={antonyms} />
+      )}
+      {collocation.length > 0 && (
+        <PartGroup
+          title={t("main-collocation", null, "Collocation")}
+          parts={collocation}
+        />
+      )}
+
       {simpleWords.length > 0 && (
         <div className="space-y-1">
           {simpleWords.map((word, index) => (
@@ -1237,17 +1269,127 @@ function DictionaryDetails({
         </div>
       )}
 
-      {exchanges.length > 0 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-fg-subtle">
-          {exchanges.map((exchange) => (
-            <span key={exchange.name}>
-              {exchange.name}: {exchange.words.join(", ")}
-            </span>
-          ))}
+      {etymology && (
+        <div className="text-fg-subtle">
+          <span className="font-medium">
+            {t("main-etymology", null, "Etymology")}:{" "}
+          </span>
+          {etymology}
         </div>
       )}
     </div>
   );
+}
+
+function PartGroup({
+  title,
+  parts,
+}: {
+  title: string;
+  parts: DictionaryPart[];
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="font-medium text-fg-subtle">{title}</div>
+      {parts.map((part, index) => (
+        <div key={`${part.part ?? "part"}-${index}`} className="flex gap-2">
+          {part.part && (
+            <span className="w-10 shrink-0 text-fg-subtle">{part.part}</span>
+          )}
+          <span className="min-w-0 text-fg">{part.means.join("; ")}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ResultToolbar({
+  result,
+  sourceText,
+  copied,
+  onCopied,
+}: {
+  result: TranslateResult;
+  sourceText: string;
+  copied: boolean;
+  onCopied: () => void;
+}) {
+  const t = useT();
+  const link = serviceWordLink(result.service_id, sourceText, result);
+  return (
+    <div className="flex items-center gap-1 border-t border-border pt-2">
+      <AudioButton
+        audioKey={`result:${result.service_id}:${result.audio_url ?? ""}`}
+        className="icon-btn btn-ghost !h-7 !w-7"
+        url={result.audio_url ?? null}
+      />
+      <button
+        className="icon-btn btn-ghost !h-7 !w-7"
+        onClick={async () => {
+          await api.copyToClipboard(result.text);
+          onCopied();
+        }}
+        title={
+          copied
+            ? t("common-copied", null, "Copied")
+            : t("common-copy", null, "Copy")
+        }
+        aria-label={
+          copied
+            ? t("common-copied", null, "Copied")
+            : t("common-copy", null, "Copy")
+        }
+      >
+        {copied ? (
+          <Check size={15} aria-hidden="true" />
+        ) : (
+          <Copy size={15} aria-hidden="true" />
+        )}
+      </button>
+      {link && (
+        <a
+          className="icon-btn btn-ghost !h-7 !w-7"
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          title={t("main-open-link", null, "Open link")}
+          aria-label={t("main-open-link", null, "Open link")}
+        >
+          <ExternalLink size={15} aria-hidden="true" />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function serviceWordLink(
+  serviceId: ServiceId,
+  sourceText: string,
+  result: TranslateResult,
+): string | null {
+  const query = encodeURIComponent(sourceText || result.text);
+  switch (serviceId) {
+    case "youdao":
+      return `https://dict.youdao.com/w/${query}`;
+    case "bing":
+      return `https://cn.bing.com/dict/search?q=${query}`;
+    case "google":
+      return `https://translate.google.com/?sl=auto&tl=${encodeURIComponent(result.to)}&text=${query}`;
+    case "deepl":
+      return "https://www.deepl.com/translator";
+    case "openai":
+      return null;
+    default:
+      return null;
+  }
+}
+
+function isShortWord(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.includes("\n")) return false;
+  const isAsciiWord = /^[\x00-\x7F]+$/.test(trimmed) && !trimmed.includes(" ");
+  if (isAsciiWord) return [...trimmed].length <= 20;
+  return [...trimmed].length <= 7;
 }
 
 function phoneticDisplayLabel(label: string): string {
