@@ -107,6 +107,9 @@ pub struct TranslateResult {
     /// Optional extras (e.g. Youdao dictionary entries).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra: Option<serde_json::Value>,
+    /// Alternative translations, when a service provides ranked alternatives (e.g. DeepL).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternatives: Vec<String>,
 }
 
 /// Detailed dictionary data aligned with Easydict word-result rendering.
@@ -127,6 +130,18 @@ pub struct DictionaryResult {
     /// Dictionary tags such as exam categories.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// Synonym groups by part of speech.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub synonyms: Vec<DictionaryPart>,
+    /// Antonym groups by part of speech.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub antonyms: Vec<DictionaryPart>,
+    /// Collocation groups by part of speech.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub collocation: Vec<DictionaryPart>,
+    /// Etymology text, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub etymology: Option<String>,
 }
 
 impl DictionaryResult {
@@ -137,6 +152,10 @@ impl DictionaryResult {
             && self.exchanges.is_empty()
             && self.simple_words.is_empty()
             && self.tags.is_empty()
+            && self.synonyms.is_empty()
+            && self.antonyms.is_empty()
+            && self.collocation.is_empty()
+            && self.etymology.is_none()
     }
 
     /// Return the first playable phonetic URL, matching Easydict's source-audio behavior.
@@ -193,4 +212,95 @@ pub struct SimpleDictionaryWord {
     /// Meanings for this candidate.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub means: Vec<String>,
+}
+
+/// Normalize a part-of-speech string to EasyDict-style abbreviation
+/// (`n.`/`v.`/`adj.`/…). Already-abbreviated and Chinese forms pass through
+/// the same table. Mirrors `EZTranslatePart.partAbbreviation()` in EasyDict.
+pub fn part_abbreviation(part: &str) -> String {
+    let normalized = part.trim().trim_end_matches('.').to_ascii_lowercase();
+    let mapped = match normalized.as_str() {
+        "adjective" | "形容词" | "adj" => "adj.",
+        "adverb" | "副词" | "adv" => "adv.",
+        "verb" | "动词" | "v" => "v.",
+        "noun" | "名词" | "n" => "n.",
+        "pronoun" | "代词" | "pron" => "pron.",
+        "preposition" | "介词" | "prep" => "prep.",
+        "conjunction" | "连词" | "conj" => "conj.",
+        "interjection" | "感叹词" | "int" | "interj" => "int.",
+        "article" | "冠词" | "art" => "art.",
+        "numeral" | "数词" | "num" => "num.",
+        "linking verb" | "linkverb" | "linkv" => "linkv.",
+        "auxiliary verb" | "auxverb" | "auxv" => "auxv.",
+        "modal verb" | "modalverb" | "modalv" => "modalv.",
+        "determiner" | "det" => "det.",
+        "abbreviation" | "abbr" => "abbr.",
+        "infinitive" | "inf" => "inf.",
+        "participle" | "part" => "part.",
+        "web" => "Web",
+        _ => part.trim(),
+    };
+    mapped.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dictionary_result_is_empty_counts_new_fields() {
+        assert!(DictionaryResult::default().is_empty());
+        let mut d = DictionaryResult::default();
+        d.synonyms.push(DictionaryPart {
+            part: None,
+            means: vec!["fast".into()],
+        });
+        assert!(!d.is_empty(), "synonyms should count");
+        let mut d = DictionaryResult::default();
+        d.etymology = Some("from Old English".into());
+        assert!(!d.is_empty(), "etymology should count");
+    }
+
+    #[test]
+    fn translate_result_skips_empty_alternatives_in_json() {
+        let base = TranslateResult {
+            service_id: ServiceId::Youdao,
+            service_name: "Youdao".into(),
+            from: None,
+            to: "zh-Hans".into(),
+            text: "好".into(),
+            audio_url: None,
+            detected_source: None,
+            elapsed_ms: 0,
+            dictionary: None,
+            source_dictionary: None,
+            target_dictionary: None,
+            extra: None,
+            alternatives: Vec::new(),
+        };
+        let json = serde_json::to_string(&base).unwrap();
+        assert!(
+            !json.contains("alternatives"),
+            "empty alternatives must be skipped"
+        );
+        let mut with_alts = base.clone();
+        with_alts.alternatives = vec!["good".into(), "fine".into()];
+        let json2 = serde_json::to_string(&with_alts).unwrap();
+        assert!(json2.contains("\"alternatives\""));
+    }
+
+    #[test]
+    fn part_abbreviation_maps_full_easydict_table() {
+        assert_eq!(part_abbreviation("noun"), "n.");
+        assert_eq!(part_abbreviation("形容词"), "adj.");
+        assert_eq!(part_abbreviation("adj."), "adj.");
+        assert_eq!(part_abbreviation("linking verb"), "linkv.");
+        assert_eq!(part_abbreviation("auxv"), "auxv.");
+        assert_eq!(part_abbreviation("modal verb"), "modalv.");
+        assert_eq!(part_abbreviation("determiner"), "det.");
+        assert_eq!(part_abbreviation("abbreviation"), "abbr.");
+        assert_eq!(part_abbreviation("infinitive"), "inf.");
+        assert_eq!(part_abbreviation("participle"), "part.");
+        assert_eq!(part_abbreviation("Web"), "Web");
+    }
 }

@@ -138,6 +138,7 @@ impl DeepLService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 
@@ -224,6 +225,7 @@ impl DeepLService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 }

@@ -114,6 +114,7 @@ impl GoogleService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 
@@ -183,6 +184,7 @@ impl GoogleService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 }

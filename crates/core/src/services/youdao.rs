@@ -214,6 +214,7 @@ impl YoudaoService {
             source_dictionary,
             target_dictionary,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 
@@ -319,6 +320,7 @@ impl YoudaoService {
             source_dictionary,
             target_dictionary,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 

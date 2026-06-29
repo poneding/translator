@@ -276,6 +276,7 @@ impl TranslationService for OpenAIService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 }

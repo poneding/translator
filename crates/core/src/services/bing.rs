@@ -185,6 +185,7 @@ impl BingService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
+            alternatives: Vec::new(),
         })
     }
 }
