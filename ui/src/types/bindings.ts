@@ -91,6 +91,7 @@ export interface TranslateResult {
   from: string | null;
   to: string;
   text: string;
+  alternatives?: string[];
   audio_url?: string | null;
   detected_source: string | null;
   elapsed_ms: number;
@@ -106,6 +107,10 @@ export interface DictionaryResult {
   exchanges?: WordExchange[];
   simple_words?: SimpleDictionaryWord[];
   tags?: string[];
+  synonyms?: DictionaryPart[];
+  antonyms?: DictionaryPart[];
+  collocation?: DictionaryPart[];
+  etymology?: string | null;
 }
 
 export interface WordPhonetic {
