@@ -106,32 +106,31 @@ impl BingService {
 
         // v7 dictionary path: English single-word -> Chinese. Falls back to the
         // translate + lookup path when the dict endpoint fails or yields nothing.
-        if is_english_word_to_chinese(&req.text, req.from.as_deref(), &to) {
-            if let Ok(dict_json) = fetch_bing_dict(client, &base_url, &req.text).await {
-                if let Some(dict) = parse_bing_dict(&dict_json, &req.text) {
-                    let audio_url = dict.primary_audio_url();
-                    let text = dict
-                        .parts
-                        .first()
-                        .and_then(|p| p.means.first().cloned())
-                        .unwrap_or_default();
-                    return Ok(TranslateResult {
-                        service_id: ServiceId::Bing,
-                        service_name: "Microsoft Translator".to_string(),
-                        from: Some("en".to_string()),
-                        to,
-                        text,
-                        audio_url,
-                        detected_source: Some("en".to_string()),
-                        elapsed_ms: started.elapsed().as_millis() as u64,
-                        dictionary: None,
-                        source_dictionary: Some(dict),
-                        target_dictionary: None,
-                        extra: None,
-                        alternatives: Vec::new(),
-                    });
-                }
-            }
+        if is_english_word_to_chinese(&req.text, req.from.as_deref(), &to)
+            && let Ok(dict_json) = fetch_bing_dict(client, &base_url, &req.text).await
+            && let Some(dict) = parse_bing_dict(&dict_json, &req.text)
+        {
+            let audio_url = dict.primary_audio_url();
+            let text = dict
+                .parts
+                .first()
+                .and_then(|p| p.means.first().cloned())
+                .unwrap_or_default();
+            return Ok(TranslateResult {
+                service_id: ServiceId::Bing,
+                service_name: "Microsoft Translator".to_string(),
+                from: Some("en".to_string()),
+                to,
+                text,
+                audio_url,
+                detected_source: Some("en".to_string()),
+                elapsed_ms: started.elapsed().as_millis() as u64,
+                dictionary: None,
+                source_dictionary: Some(dict),
+                target_dictionary: None,
+                extra: None,
+                alternatives: Vec::new(),
+            });
         }
 
         let web_config = fetch_web_config(client, &base_url).await?;
@@ -416,7 +415,7 @@ fn is_short_word(text: &str) -> bool {
         return false;
     }
     let len = trimmed.chars().count();
-    if trimmed.chars().all(|c| c.is_ascii()) {
+    if trimmed.is_ascii() {
         len <= 20
     } else {
         len <= 7

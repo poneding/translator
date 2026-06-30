@@ -213,30 +213,26 @@ impl GoogleService {
         client: &Client,
     ) -> ServiceResult<TranslateResult> {
         let started = Instant::now();
-        if should_use_webapp(&req.text, req.from.as_deref(), &req.to) {
-            if let Ok(json) = fetch_webapp(req, cfg, client).await {
-                if let Some((text, detected, dict)) =
-                    parse_webapp(&json, req.from.as_deref(), &req.to)
-                {
-                    if !text.is_empty() || dict.is_some() {
-                        return Ok(TranslateResult {
-                            service_id: ServiceId::Google,
-                            service_name: "Google Translate".to_string(),
-                            from: req.from.clone(),
-                            to: req.to.clone(),
-                            text,
-                            audio_url: None,
-                            detected_source: detected,
-                            elapsed_ms: started.elapsed().as_millis() as u64,
-                            dictionary: None,
-                            source_dictionary: dict,
-                            target_dictionary: None,
-                            extra: None,
-                            alternatives: Vec::new(),
-                        });
-                    }
-                }
-            }
+        if should_use_webapp(&req.text, req.from.as_deref(), &req.to)
+            && let Ok(json) = fetch_webapp(req, cfg, client).await
+            && let Some((text, detected, dict)) = parse_webapp(&json, req.from.as_deref(), &req.to)
+            && (!text.is_empty() || dict.is_some())
+        {
+            return Ok(TranslateResult {
+                service_id: ServiceId::Google,
+                service_name: "Google Translate".to_string(),
+                from: req.from.clone(),
+                to: req.to.clone(),
+                text,
+                audio_url: None,
+                detected_source: detected,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+                dictionary: None,
+                source_dictionary: dict,
+                target_dictionary: None,
+                extra: None,
+                alternatives: Vec::new(),
+            });
         }
         Self::translate_gtx(req, cfg, client).await
     }
@@ -255,7 +251,7 @@ fn should_use_webapp(text: &str, from: Option<&str>, to: &str) -> bool {
         return false;
     }
     let len = trimmed.chars().count();
-    let ascii = trimmed.chars().all(|c| c.is_ascii());
+    let ascii = trimmed.is_ascii();
     let short = if ascii { len <= 20 } else { len <= 7 };
     if !short {
         return false;
@@ -413,7 +409,7 @@ fn parse_webapp(
 
     // [0] = translation segments; each sub-array's first element is the text.
     let mut text_parts = Vec::new();
-    if let Some(segments) = arr.get(0).and_then(|v| v.as_array()) {
+    if let Some(segments) = arr.first().and_then(|v| v.as_array()) {
         for seg in segments {
             if let Some(t) = seg
                 .as_array()

@@ -256,8 +256,10 @@ mod tests {
             means: vec!["fast".into()],
         });
         assert!(!d.is_empty(), "synonyms should count");
-        let mut d = DictionaryResult::default();
-        d.etymology = Some("from Old English".into());
+        let d = DictionaryResult {
+            etymology: Some("from Old English".into()),
+            ..Default::default()
+        };
         assert!(!d.is_empty(), "etymology should count");
     }
 
