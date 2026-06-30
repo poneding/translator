@@ -204,13 +204,23 @@ impl DeepLService {
         let result = parsed
             .result
             .ok_or_else(|| ServiceError::Parse("deepl web returned no result".to_string()))?;
-        let text = result
+        let first = result
             .texts
             .into_iter()
             .next()
-            .map(|item| item.text)
-            .filter(|text| !text.trim().is_empty())
             .ok_or_else(|| ServiceError::Parse("deepl web returned no text".to_string()))?;
+        let text = first.text;
+        if text.trim().is_empty() {
+            return Err(ServiceError::Parse(
+                "deepl web returned no text".to_string(),
+            ));
+        }
+        let alternatives: Vec<String> = first
+            .alternatives
+            .into_iter()
+            .map(|alt| alt.text)
+            .filter(|t| !t.trim().is_empty())
+            .collect();
 
         Ok(TranslateResult {
             service_id: ServiceId::DeepL,
@@ -225,7 +235,7 @@ impl DeepLService {
             source_dictionary: None,
             target_dictionary: None,
             extra: None,
-            alternatives: Vec::new(),
+            alternatives,
         })
     }
 }
@@ -319,6 +329,13 @@ struct DeepLWebResult {
 
 #[derive(Debug, Deserialize)]
 struct DeepLWebText {
+    text: String,
+    #[serde(default)]
+    alternatives: Vec<DeepLAlternative>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeepLAlternative {
     text: String,
 }
 
@@ -479,6 +496,37 @@ mod tests {
 
         assert_eq!(result.text, "Hallo");
         assert_eq!(result.detected_source.as_deref(), Some("EN"));
+    }
+
+    // ---- S3b: web fallback captures alternative translations ----
+    #[tokio::test]
+    async fn translate_web_captures_alternatives() {
+        let server = MockServer::start().await;
+        let cfg = cfg_for(&server);
+        let req = TranslateRequest::auto("good", "DE");
+        Mock::given(method("POST"))
+            .and(path("/jsonrpc"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "jsonrpc": "2.0",
+                "result": {
+                    "texts": [{
+                        "text": "gut",
+                        "alternatives": [{ "text": "gute" }, { "text": "guten" }]
+                    }],
+                    "lang": "EN"
+                }
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let result = DeepLService
+            .translate(&req, &cfg, None, &crate::http::test_client())
+            .await
+            .expect("web fallback should work without key");
+
+        assert_eq!(result.text, "gut");
+        assert_eq!(result.alternatives, vec!["gute", "guten"]);
     }
 
     // ---- S4: 401 -> invalid_credentials ----
