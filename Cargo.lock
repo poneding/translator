@@ -6344,7 +6344,7 @@ dependencies = [
 
 [[package]]
 name = "translator-app"
-version = "0.2.8"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6374,7 +6374,7 @@ dependencies = [
 
 [[package]]
 name = "translator-core"
-version = "0.2.8"
+version = "0.3.0"
 dependencies = [
  "aes 0.9.1",
  "anyhow",
@@ -6403,7 +6403,7 @@ dependencies = [
 
 [[package]]
 name = "translator-platform"
-version = "0.2.8"
+version = "0.3.0"
 dependencies = [
  "accessibility-sys",
  "anyhow",

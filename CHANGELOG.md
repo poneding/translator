@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-30
+
+
+### Added
+
+- **core:** Add alternatives + dict sub-fields, promote part_abbreviation
+- **ui:** Sync bindings for alternatives + dict sub-fields
+- **ui:** Add dictionary section i18n keys
+- **ui:** Render source dictionary with full EasyDict block order
+- **bing:** Add v7 dictionary + tlookupv3 lookup for multi-result
+- **google:** Add webapp dict path with ported tk signing
+- **deepl:** Capture web alternatives
+- **ui:** Compact result panel, per-result tts audio, auto window height
+
+
+### Changed
+
+- **youdao:** Reuse core part_abbreviation (DRY)
+
+
+### Chores
+
+- Ignore vendored easydict reference (vendor/)
+- Add Makefile with test/lint/check/build/run targets
+
+
+### Documentation
+
+- Add EasyDict translation result replication design spec
+- Add EasyDict replication implementation plan
+- **readme:** Acknowledge easydict inspiration and ported features
 ## [0.2.8] - 2026-06-21
 
 
