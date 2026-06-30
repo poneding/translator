@@ -32,3 +32,6 @@ Thumbs.db
 
 # Test fixtures with secrets
 fixtures/credentials.json
+
+# Vendor
+vendor/
