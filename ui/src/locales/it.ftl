@@ -214,4 +214,3 @@ main-antonyms = Antonimi
 main-collocation = Collocazione
 main-etymology = Etimologia
 main-alternatives = Alternative
-main-open-link = Apri collegamento

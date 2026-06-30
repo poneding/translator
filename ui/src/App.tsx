@@ -1,10 +1,9 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { platform as getPlatform, type Platform } from "@tauri-apps/plugin-os";
 import {
   ArrowRight,
   Check,
   Copy,
-  ExternalLink,
   History as HistoryIcon,
   Minus,
   Pin,
@@ -23,6 +22,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 import { Combobox, type ComboboxOption } from "./components/Combobox";
 import { useAutoHideScrollbars } from "./hooks/useAutoHideScrollbars";
@@ -35,14 +35,14 @@ import {
   type TFunction,
 } from "./i18n/languages";
 import * as api from "./ipc/commands";
-import { SettingsView, type SettingsViewRequest } from "./SettingsApp";
 import { ServiceLogo } from "./services/ServiceLogo";
 import { serviceMeta } from "./services/serviceMeta";
+import { SettingsView, type SettingsViewRequest } from "./SettingsApp";
 import { useConfigStore } from "./stores/config";
 import type {
   DictionaryPart,
-  GeneralConfig,
   DictionaryResult,
+  GeneralConfig,
   HistoryItem,
   ServiceId,
   ServiceOutcomeDto,
@@ -55,6 +55,58 @@ type AppView = "main" | "settings";
 
 const SOURCE_MIN_HEIGHT = 108;
 const SOURCE_MAX_HEIGHT = 156;
+// Window height auto-adapts to content: grows when results arrive, clamped to
+// the min/max from tauri.conf.json. Mirrors Easydict's auto-sizing behavior.
+const TITLEBAR_HEIGHT = 34;
+const MAIN_SHELL_PADDING = 24; // main-shell p-3 top + bottom
+const MIN_WINDOW_HEIGHT = 560;
+const MAX_WINDOW_HEIGHT = 920;
+
+function useAutoWindowHeight(
+  contentRef: RefObject<HTMLElement | null>,
+  enabled: boolean,
+) {
+  useEffect(() => {
+    if (!enabled) return;
+    const win = getCurrentWindow();
+    let raf = 0;
+    const apply = async () => {
+      const el = contentRef.current;
+      if (!el) return;
+      // scrollHeight is the natural content height (independent of the window
+      // size), so growing the window does not re-trigger this measurement.
+      const natural = el.scrollHeight;
+      const desired = Math.max(
+        MIN_WINDOW_HEIGHT,
+        Math.min(
+          MAX_WINDOW_HEIGHT,
+          natural + TITLEBAR_HEIGHT + MAIN_SHELL_PADDING,
+        ),
+      );
+      try {
+        const inner = await win.innerSize();
+        const factor = await win.scaleFactor();
+        const curHeight = inner.height / factor;
+        if (Math.abs(desired - curHeight) > 2) {
+          await win.setSize(new LogicalSize(inner.width / factor, desired));
+        }
+      } catch {
+        // window calls may fail outside the Tauri runtime; ignore
+      }
+    };
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => void apply());
+    };
+    const ro = new ResizeObserver(schedule);
+    if (contentRef.current) ro.observe(contentRef.current);
+    schedule();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [enabled, contentRef]);
+}
 
 export function App() {
   const { config, load, loading, error, save, setConfig } = useConfigStore();
@@ -75,9 +127,11 @@ export function App() {
   const requestIdRef = useRef<string | null>(null);
   const nextSettingsRequestId = useRef(0);
   const serviceRequestIdsRef = useRef<Partial<Record<ServiceId, string>>>({});
+  const workspaceRef = useRef<HTMLElement | null>(null);
 
   useTheme(config?.general.theme as "system" | "light" | "dark" | undefined);
   useAutoHideScrollbars();
+  useAutoWindowHeight(workspaceRef, activeView === "main");
 
   useEffect(() => {
     setLocale(config?.general.app_language ?? "system");
@@ -91,7 +145,7 @@ export function App() {
     if (!config || targetManual) return;
     setTo(
       targetLanguageFromOutcomes(outcomes) ??
-        resolveAutoTargetLanguage(config.general, text),
+      resolveAutoTargetLanguage(config.general, text),
     );
   }, [config, outcomes, targetManual, text]);
 
@@ -433,7 +487,7 @@ export function App() {
               : "grid-cols-1")
           }
         >
-          <section className="translation-workspace">
+          <section ref={workspaceRef} className="translation-workspace">
             <SourceEditor
               busy={busy}
               detectedSource={detectedSource}
@@ -820,15 +874,15 @@ function ServiceStatusRow({
       <span className="service-status-services">
         {enabledServices.length > 0
           ? t(
-              "main-enabled-services",
-              { count: enabledServices.length },
-              `${enabledServices.length} services enabled`,
-            )
+            "main-enabled-services",
+            { count: enabledServices.length },
+            `${enabledServices.length} services enabled`,
+          )
           : t(
-              "main-no-services-enabled",
-              null,
-              "No services enabled. Open Settings to enable at least one.",
-            )}
+            "main-no-services-enabled",
+            null,
+            "No services enabled. Open Settings to enable at least one.",
+          )}
         {enabledServices.length > 0 && (
           <span className="service-logo-strip">
             {enabledServices.map((service) => (
@@ -864,10 +918,10 @@ function LanguageDirectionControl({
     languagePartsForCode(detectedSource, t) ??
     (detectedSource
       ? {
-          flag: "",
-          leading: detectedSource.toUpperCase(),
-          label: detectedSource,
-        }
+        flag: "",
+        leading: detectedSource.toUpperCase(),
+        label: detectedSource,
+      }
       : autoLanguageParts(t));
 
   return (
@@ -917,17 +971,17 @@ function TranslationErrorPanel({ message }: { message: string }) {
         <span>
           {isPermission
             ? t(
-                "main-permission-denied",
-                null,
-                "Translator needs the Accessibility permission",
-              )
+              "main-permission-denied",
+              null,
+              "Translator needs the Accessibility permission",
+            )
             : isMacosSignature
               ? t(
-                  "main-macos-signature-error",
-                  null,
-                  "This macOS build is not signed with a stable identity. Install a signed build, then re-enable Accessibility for Translator.",
-                )
-            : message}
+                "main-macos-signature-error",
+                null,
+                "This macOS build is not signed with a stable identity. Install a signed build, then re-enable Accessibility for Translator.",
+              )
+              : message}
         </span>
         {(isPermission || isMacosSignature) && (
           <button
@@ -962,10 +1016,10 @@ function ResultsPanel({
         {busy
           ? t("common-loading", null, "Loading...")
           : t(
-              "main-results-empty",
-              null,
-              "Translation results will appear here.",
-            )}
+            "main-results-empty",
+            null,
+            "Translation results will appear here.",
+          )}
       </div>
     );
   }
@@ -1008,13 +1062,13 @@ function ResultCard({
 
   return (
     <article className="result-card">
-      <div className="mb-2 flex min-h-7 items-center justify-between gap-2">
-        <h2 className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold">
-          <ServiceLogo serviceId={outcome.service_id} className="h-4 w-4" />
+      <div className="mb-1.5 flex min-h-6 items-center justify-between gap-2">
+        <h2 className="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold ml-1">
+          <ServiceLogo serviceId={outcome.service_id} className="h-3.5 w-3.5" />
           <span className="min-w-0 truncate">{outcome.service_name}</span>
         </h2>
         <button
-          className="result-card-refresh icon-btn btn-ghost !h-7 !w-7"
+          className="result-card-refresh icon-btn btn-ghost !h-6 !w-6"
           disabled={refreshing}
           onClick={onRefresh}
           title={t("main-refresh-service", null, "Refresh this service")}
@@ -1068,9 +1122,9 @@ function ResultBody({
     result.source_dictionary ?? result.dictionary ?? result.target_dictionary ?? null;
   const showBigWord = isShortWord(sourceText) && dictionary != null;
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 mx-2">
       {showBigWord && (
-        <p className="break-all text-xl font-semibold leading-snug">
+        <p className="break-all text-lg font-semibold leading-snug">
           {sourceText}
         </p>
       )}
@@ -1089,7 +1143,6 @@ function ResultBody({
       <DictionaryDetails dictionary={dictionary} />
       <ResultToolbar
         result={result}
-        sourceText={sourceText}
         copied={copied}
         onCopied={onCopied}
       />
@@ -1179,7 +1232,7 @@ function DictionaryDetails({
   }
 
   return (
-    <div className="space-y-2 border-t border-border pt-2 text-xs">
+    <div className="space-y-1.5 border-t border-border pt-1.5 text-xs">
       {phonetics.length > 0 && (
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {phonetics.map((phonetic, index) => (
@@ -1305,26 +1358,30 @@ function PartGroup({
 
 function ResultToolbar({
   result,
-  sourceText,
   copied,
   onCopied,
 }: {
   result: TranslateResult;
-  sourceText: string;
   copied: boolean;
   onCopied: () => void;
 }) {
   const t = useT();
-  const link = serviceWordLink(result.service_id, sourceText, result);
+  // Easydict's bottom-toolbar audio always plays the translated text, falling
+  // back to a default TTS service when the service gave no audio URL. We use
+  // the backend's Youdao TTS (get_text_audio_url) for that fallback.
+  const resolveAudioUrl = result.audio_url
+    ? undefined
+    : () => api.getTextAudioUrl({ text: result.text, language: result.to });
   return (
-    <div className="flex items-center gap-1 border-t border-border pt-2">
+    <div className="flex items-center gap-1 border-t border-border pt-1.5">
       <AudioButton
-        audioKey={`result:${result.service_id}:${result.audio_url ?? ""}`}
-        className="icon-btn btn-ghost !h-7 !w-7"
+        audioKey={`result:${result.service_id}`}
+        className="icon-btn btn-ghost !h-6 !w-6"
         url={result.audio_url ?? null}
+        resolveUrl={resolveAudioUrl}
       />
       <button
-        className="icon-btn btn-ghost !h-7 !w-7"
+        className="icon-btn btn-ghost !h-6 !w-6"
         onClick={async () => {
           await api.copyToClipboard(result.text);
           onCopied();
@@ -1341,55 +1398,21 @@ function ResultToolbar({
         }
       >
         {copied ? (
-          <Check size={15} aria-hidden="true" />
+          <Check size={14} aria-hidden="true" />
         ) : (
-          <Copy size={15} aria-hidden="true" />
+          <Copy size={14} aria-hidden="true" />
         )}
       </button>
-      {link && (
-        <a
-          className="icon-btn btn-ghost !h-7 !w-7"
-          href={link}
-          target="_blank"
-          rel="noreferrer"
-          title={t("main-open-link", null, "Open link")}
-          aria-label={t("main-open-link", null, "Open link")}
-        >
-          <ExternalLink size={15} aria-hidden="true" />
-        </a>
-      )}
     </div>
   );
 }
 
-function serviceWordLink(
-  serviceId: ServiceId,
-  sourceText: string,
-  result: TranslateResult,
-): string | null {
-  const query = encodeURIComponent(sourceText || result.text);
-  switch (serviceId) {
-    case "youdao":
-      return `https://dict.youdao.com/w/${query}`;
-    case "bing":
-      return `https://cn.bing.com/dict/search?q=${query}`;
-    case "google":
-      return `https://translate.google.com/?sl=auto&tl=${encodeURIComponent(result.to)}&text=${query}`;
-    case "deepl":
-      return "https://www.deepl.com/translator";
-    case "openai":
-      return null;
-    default:
-      return null;
-  }
-}
-
 function isShortWord(text: string): boolean {
   const trimmed = text.trim();
-  if (!trimmed || trimmed.includes("\n")) return false;
-  const isAsciiWord = /^[\x00-\x7F]+$/.test(trimmed) && !trimmed.includes(" ");
-  if (isAsciiWord) return [...trimmed].length <= 20;
-  return [...trimmed].length <= 7;
+  if (!trimmed || trimmed.includes("\n") || trimmed.includes(" ")) return false;
+  const len = [...trimmed].length;
+  const isAscii = [...trimmed].every((ch) => ch.charCodeAt(0) < 128);
+  return isAscii ? len <= 20 : len <= 7;
 }
 
 function phoneticDisplayLabel(label: string): string {

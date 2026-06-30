@@ -214,4 +214,3 @@ main-antonyms = 反義語
 main-collocation = 共起表現
 main-etymology = 語源
 main-alternatives = 代替訳
-main-open-link = リンクを開く

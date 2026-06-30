@@ -214,4 +214,3 @@ main-antonyms = 反义词
 main-collocation = 搭配
 main-etymology = 词源
 main-alternatives = 备选译文
-main-open-link = 打开链接

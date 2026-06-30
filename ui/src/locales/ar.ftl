@@ -214,4 +214,3 @@ main-antonyms = المتضادات
 main-collocation = المتلازمات
 main-etymology = أصل الكلمة
 main-alternatives = بدائل
-main-open-link = فتح الرابط

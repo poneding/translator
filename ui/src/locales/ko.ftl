@@ -214,4 +214,3 @@ main-antonyms = 반의어
 main-collocation = 연어
 main-etymology = 어원
 main-alternatives = 대체 번역
-main-open-link = 링크 열기
