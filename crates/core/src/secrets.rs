@@ -5,28 +5,21 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
-use keyring_core::{Entry, Error as KeyringError};
+// The v1 `keyring` crate re-exports `Entry`/`Error` and lazily selects the
+// platform-native store on the first `Entry::new` (macOS Keychain / Windows
+// Credential Manager / Linux Secret Service) — replacing the store-init
+// helper that was removed in keyring 4.1.
+use keyring::{Entry, Error as KeyringError};
 
 const SERVICE_NAME: &str = "dev.translator.desktop";
 
 static FALLBACK_SECRETS_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-static KEYRING_STORE_INIT: OnceLock<std::result::Result<(), String>> = OnceLock::new();
 
 fn fallback_secrets_lock() -> &'static Mutex<()> {
     FALLBACK_SECRETS_LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn ensure_keyring_store() -> std::result::Result<(), String> {
-    KEYRING_STORE_INIT
-        .get_or_init(|| {
-            // Keep Linux on Secret Service, matching the old persistent backend.
-            keyring::use_native_store(true).map_err(|error| error.to_string())
-        })
-        .clone()
-}
-
 fn keyring_entry(service_id: &str) -> std::result::Result<Entry, String> {
-    ensure_keyring_store()?;
     Entry::new(SERVICE_NAME, &format!("api_key:{service_id}")).map_err(|error| error.to_string())
 }
 
@@ -117,8 +110,6 @@ fn macos_keychain_entry_exists_without_prompt(
 
     const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
     const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
-
-    ensure_keyring_store()?;
 
     let mut search = ItemSearchOptions::new();
     search
@@ -274,6 +265,31 @@ mod tests {
         assert!(
             !probe.contains("get_password()") && !probe.contains(".load_data(true)"),
             "macOS keychain status probe must not read secret data",
+        );
+    }
+
+    #[test]
+    fn secrets_do_not_use_removed_keyring_use_native_store() {
+        // keyring 4.1 removed the `keyring::use_native_store` helper. The v1
+        // feature (enabled by default) lazily selects the platform-native
+        // store on the first `Entry::new` (macOS Keychain / Windows Credential
+        // Manager / Linux Secret Service), so the manual store-init dance is
+        // gone. This guards against reintroducing the removed API call, which
+        // fails to compile against keyring 4.1 (E0425).
+        let source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/secrets.rs");
+        let source = fs::read_to_string(source_path).expect("secrets.rs should be readable");
+        let production_source = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("secrets.rs should contain production source");
+
+        assert!(
+            !production_source.contains("use_native_store"),
+            "secrets must not call keyring::use_native_store (removed in keyring 4.1); the v1 Entry initializes the store lazily",
+        );
+        assert!(
+            production_source.contains("use keyring::"),
+            "secrets should use the v1 `keyring` Entry/Error types so the platform-native store is initialized lazily",
         );
     }
 }
