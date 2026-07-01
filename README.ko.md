@@ -133,6 +133,10 @@ translator/
 
 기여를 환영합니다! PR을 제출하기 전에 [개발자 가이드](docs/dev-guide.md)를 읽어주세요.
 
+## 🙏 감사의 말
+
+- **[EasyDict](https://github.com/tisfeng/EasyDict)** — Translator는 번역 결과 경험 측면에서 EasyDict의 큰 영향을 받았습니다. Youdao V4 사전 파싱, Bing v7 사전과 `tlookupv3` 조회, `tk` 서명이 포함된 Google WebApp 엔드포인트, 결과 카드 레이아웃 등 여러 사전 및 다중 결과 기능을 해당 Swift 구현에서 옮겨왔습니다. EasyDict는 훌륭한 **macOS 전용** 앱이며, Translator는 그에 가까운 경험을 macOS, **Windows, Linux** 로 확장하는 것을 목표로 합니다. EasyDict의 작성자와 기여자들에게 진심으로 감사드립니다.
+
 ## 📄 라이선스
 
 GPL-3.0-only. 자세한 내용은 [LICENSE](LICENSE)를 참조하세요.

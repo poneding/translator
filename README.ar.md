@@ -133,6 +133,10 @@ translator/
 
 المساهمات مرحب بها! يرجى قراءة [دليل المطور](docs/dev-guide.md) قبل تقديم PRs.
 
+## 🙏 الشكر
+
+- **[EasyDict](https://github.com/tisfeng/EasyDict)** — يستلهم Translator بشكل كبير تجربة نتائج الترجمة في EasyDict. وقد نُقلت عدة ميزات للقاموس والنتائج المتعددة من تنفيذه بلغة Swift، بما في ذلك تحليل قاموس Youdao V4، وقاموس Bing v7 مع استعلام `tlookupv3`، ونقطة نهاية Google WebApp مع توقيع `tk`، وتخطيط بطاقات النتائج. EasyDict تطبيق ممتاز **لنظام macOS فقط**؛ ويهدف Translator إلى تقديم تجربة مشابهة على macOS و**Windows وLinux**. نتقدم بجزيل الشكر إلى مؤلف EasyDict وجميع المساهمين فيه.
+
 ## 📄 الترخيص
 
 GPL-3.0-only. راجع [LICENSE](LICENSE) للتفاصيل.

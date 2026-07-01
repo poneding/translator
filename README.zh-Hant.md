@@ -133,6 +133,10 @@ translator/
 
 歡迎貢獻！提交 PR 前請閱讀我們的[開發者指南](docs/dev-guide.md)。
 
+## 🙏 致謝
+
+- **[EasyDict](https://github.com/tisfeng/EasyDict)** — Translator 在翻譯結果體驗上深受 EasyDict 啟發。若干詞典與多結果功能直接移植自其 Swift 實作，包括有道 V4 詞典解析、Bing v7 詞典與 `tlookupv3` 查詢、帶有 `tk` 簽章的 Google WebApp 端點，以及結果卡片版面。EasyDict 是一款優秀的 **僅限 macOS** 應用；Translator 希望將相近的體驗帶到 macOS、**Windows 與 Linux**。謹向 EasyDict 的作者與貢獻者致上誠摯謝意。
+
 ## 📄 授權
 
 GPL-3.0-only。詳見 [LICENSE](LICENSE)。

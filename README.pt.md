@@ -133,6 +133,10 @@ translator/
 
 Contribuições são bem-vindas! Por favor, leia nosso [Guia do desenvolvedor](docs/dev-guide.md) antes de enviar PRs.
 
+## 🙏 Agradecimentos
+
+- **[EasyDict](https://github.com/tisfeng/EasyDict)** — Translator é fortemente inspirado pela experiência de resultados de tradução do EasyDict. Vários recursos de dicionário e de múltiplos resultados foram portados da sua implementação em Swift, incluindo a análise do dicionário Youdao V4, o dicionário Bing v7 com consulta `tlookupv3`, o endpoint do Google WebApp com assinatura `tk` e o layout dos cartões de resultado. EasyDict é um excelente aplicativo **apenas para macOS**; o Translator busca levar uma experiência comparável para macOS, **Windows e Linux**. Nossos sinceros agradecimentos ao autor do EasyDict e aos seus contribuidores.
+
 ## 📄 Licença
 
 GPL-3.0-only. Consulte [LICENSE](LICENSE) para detalhes.

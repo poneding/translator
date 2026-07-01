@@ -133,6 +133,10 @@ translator/
 
 コントリビューションを歓迎します！PRを提出する前に[開発者ガイド](docs/dev-guide.md)をお読みください。
 
+## 🙏 謝辞
+
+- **[EasyDict](https://github.com/tisfeng/EasyDict)** — Translator は翻訳結果の体験面で EasyDict から強い影響を受けています。Youdao V4 辞書の解析、Bing v7 辞書と `tlookupv3` による検索、`tk` 署名付きの Google WebApp エンドポイント、結果カードのレイアウトなど、いくつかの辞書機能と複数結果機能はその Swift 実装から移植しました。EasyDict は優れた **macOS 専用** アプリです。Translator は同等の体験を macOS、**Windows、Linux** に広げることを目指しています。EasyDict の作者と貢献者の皆様に心より感謝します。
+
 ## 📄 ライセンス
 
 GPL-3.0-only。詳細は[LICENSE](LICENSE)をご覧ください。
