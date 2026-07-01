@@ -376,6 +376,17 @@ fn prepare_main_window_inner<R: Runtime>(
     cfg: &Config,
     should_position: bool,
 ) -> Result<(), String> {
+    // macOS keeps native decorations for the traffic-light overlay
+    // (titleBarStyle: "Overlay" is macOS-only and needs decorations on).
+    // Windows/Linux must drop native decorations, otherwise the native
+    // title bar stacks on top of the custom HTML title bar that already
+    // renders its own min/close controls (WindowsWindowControls) — the
+    // "double title bar" regression.
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = win.set_decorations(false);
+    }
+
     win.set_always_on_top(cfg.window.always_on_top)
         .map_err(|e| e.to_string())?;
     let _ = win.set_maximizable(false);
@@ -1253,7 +1264,36 @@ mod tests {
         assert_ne!(
             main.get("decorations").and_then(serde_json::Value::as_bool),
             Some(false),
-            "main window must keep native platform decorations so macOS gets default rounded corners and traffic lights",
+            "main window config must keep native decorations enabled so macOS can use the traffic-light overlay; non-macOS drops them at runtime (see main_window_drops_native_decorations_off_macos)",
+        );
+    }
+
+    #[test]
+    fn main_window_drops_native_decorations_off_macos() {
+        // macOS keeps native decorations for the traffic-light overlay
+        // (titleBarStyle: "Overlay" is macOS-only and needs decorations on),
+        // but Windows/Linux must drop them at runtime. Otherwise the native
+        // title bar stacks on top of the custom HTML title bar that already
+        // renders its own min/close controls (WindowsWindowControls) — the
+        // "double title bar" regression from switching the config off
+        // `decorations: false` to `titleBarStyle: "Overlay"`.
+        let commands_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands.rs");
+        let source =
+            fs::read_to_string(commands_source_path).expect("commands.rs should be readable");
+        let production_source = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("commands.rs should contain production source");
+
+        let gate_pos = production_source
+            .find("#[cfg(not(target_os = \"macos\"))]")
+            .expect("off-macOS window setup must be gated behind cfg(not(target_os = \"macos\"))");
+        let drop_pos = production_source
+            .find("set_decorations(false)")
+            .expect("main window must drop native decorations on Windows/Linux to avoid the double title bar");
+        assert!(
+            drop_pos > gate_pos,
+            "set_decorations(false) must live inside the cfg(not(target_os = \"macos\")) block so macOS keeps its native overlay",
         );
     }
 
