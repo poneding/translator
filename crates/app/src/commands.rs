@@ -1001,8 +1001,9 @@ mod tests {
 
     use super::{
         DeleteApiKeyArgs, HasApiKeyArgs, MainWindowWorkArea, PhysicalPosition, PhysicalSize,
-        SetApiKeyArgs, WINDOW_EDGE_MARGIN, macos_designated_requirement_is_cdhash_only,
-        resolve_main_window_position, should_position_main_window_on_show,
+        SetApiKeyArgs, WINDOW_EDGE_MARGIN, autostart_enable_disabled_reason,
+        macos_designated_requirement_is_cdhash_only, resolve_main_window_position,
+        should_position_main_window_on_show,
     };
     use translator_core::config::WindowPosition;
 
@@ -1149,6 +1150,30 @@ mod tests {
         assert!(
             !main_source.contains("// Build tray.\n            tray::build_tray(app.handle())?;"),
             "startup should not build the tray/menu-bar icon unconditionally",
+        );
+    }
+
+    #[test]
+    fn startup_reconciles_autostart_app_setting() {
+        let main_source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+        let main_source = fs::read_to_string(main_source_path).expect("main.rs should be readable");
+
+        assert!(
+            main_source
+                .contains("commands::sync_autostart(app.handle(), cfg.app.launch_at_startup)")
+                && main_source.contains("could not synchronize autostart setting"),
+            "startup should reconcile the persisted launch-at-startup setting with the OS autostart entry",
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn development_builds_refuse_to_enable_autostart() {
+        assert_eq!(
+            autostart_enable_disabled_reason(),
+            Some(
+                "launch at startup cannot be enabled from a development build; install or run a release build first"
+            ),
         );
     }
 
@@ -2074,15 +2099,34 @@ pub fn read_clipboard<R: Runtime>(app: AppHandle<R>) -> Result<String, String> {
     app.clipboard().read_text().map_err(|e| e.to_string())
 }
 
-fn sync_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), String> {
+pub(crate) fn sync_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
 
     let manager = app.autolaunch();
     let current = manager.is_enabled().map_err(|e| e.to_string())?;
     match (enabled, current) {
-        (true, false) => manager.enable().map_err(|e| e.to_string()),
+        (true, false) => {
+            if let Some(reason) = autostart_enable_disabled_reason() {
+                return Err(reason.to_string());
+            }
+            manager.enable().map_err(|e| e.to_string())
+        }
         (false, true) => manager.disable().map_err(|e| e.to_string()),
         _ => Ok(()),
+    }
+}
+
+fn autostart_enable_disabled_reason() -> Option<&'static str> {
+    #[cfg(debug_assertions)]
+    {
+        Some(
+            "launch at startup cannot be enabled from a development build; install or run a release build first",
+        )
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        None
     }
 }
 

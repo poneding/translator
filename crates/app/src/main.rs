@@ -85,6 +85,10 @@ fn main() {
             let state = AppState::new();
             app.manage(Arc::new(state));
 
+            if let Err(e) = commands::sync_autostart(app.handle(), cfg.app.launch_at_startup) {
+                tracing::warn!(error = %e, "could not synchronize autostart setting");
+            }
+
             tray::sync_tray_visibility(app.handle(), cfg.app.show_menu_bar_icon)?;
 
             // BH-1.5: if the previous run failed to register its hotkey, fall
